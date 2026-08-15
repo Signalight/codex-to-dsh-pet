@@ -27,8 +27,9 @@ if (-not (Test-Path (Join-Path $workspace 'lib\client.js'))) {
 }
 
 # 1) 复制运行时文件，并把 package.json 的 name 对齐到插件名。
+New-Item -ItemType Directory -Force -Path $pluginDst | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $pluginDst 'lib') | Out-Null
-Copy-Item (Join-Path $workspace 'package.json') $pluginDst -Force
+Copy-Item (Join-Path $workspace 'package.json') (Join-Path $pluginDst 'package.json') -Force
 Copy-Item (Join-Path $workspace 'lib\index.js') (Join-Path $pluginDst 'lib\index.js') -Force
 Copy-Item (Join-Path $workspace 'lib\client.js') (Join-Path $pluginDst 'lib\client.js') -Force
 $pkgPath = Join-Path $pluginDst 'package.json'
