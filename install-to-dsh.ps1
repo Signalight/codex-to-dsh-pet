@@ -1,8 +1,8 @@
 # install-to-dsh.ps1
-# 把构建好的 codex-to-dsh-pet 插件安装进 DSH 的 "web" profile。
-# 前置：先运行 `node build.js`（生成 lib/client.js）。
-# 插件名取自 config.json 的 `name`（缺省为 codex-to-dsh-pet）。
-# 幂等：可重复运行；编辑 cordis.patch.yml 前自动备份。
+# Install the built codex-to-dsh-pet plugin into the DSH "web" profile.
+# Prerequisite: run `node build.js` first (produces lib/client.js).
+# Plugin name comes from config.json `name` (default: codex-to-dsh-pet).
+# Idempotent: safe to re-run; backs up cordis.patch.yml before editing.
 
 $ErrorActionPreference = 'Stop'
 
@@ -10,7 +10,7 @@ $workspace = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $workspace 'config.json'
 $pluginName = 'codex-to-dsh-pet'
 if (Test-Path $configPath) {
-    $config = Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $config = ([System.IO.File]::ReadAllText($configPath)) | ConvertFrom-Json
     if ($config.name) { $pluginName = $config.name }
 }
 
@@ -23,42 +23,39 @@ if (-not (Test-Path $profileDir)) {
     throw "DSH web profile not found at $profileDir"
 }
 if (-not (Test-Path (Join-Path $workspace 'lib\client.js'))) {
-    throw "built client bundle missing — run: node $workspace\build.js"
+    throw "built client bundle missing - run: node $workspace\build.js"
 }
 
-# 1) 复制运行时文件，并把 package.json 的 name 对齐到插件名。
-New-Item -ItemType Directory -Force -Path $pluginDst | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $pluginDst 'lib') | Out-Null
+# 1) Copy runtime files; align package.json name to the plugin name.
+if (Test-Path $pluginDst) { Remove-Item $pluginDst -Recurse -Force }
+[System.IO.Directory]::CreateDirectory($pluginDst) | Out-Null
+[System.IO.Directory]::CreateDirectory((Join-Path $pluginDst 'lib')) | Out-Null
 Copy-Item (Join-Path $workspace 'package.json') (Join-Path $pluginDst 'package.json') -Force
 Copy-Item (Join-Path $workspace 'lib\index.js') (Join-Path $pluginDst 'lib\index.js') -Force
 Copy-Item (Join-Path $workspace 'lib\client.js') (Join-Path $pluginDst 'lib\client.js') -Force
+
 $pkgPath = Join-Path $pluginDst 'package.json'
-$pkgText = Get-Content $pkgPath -Raw -Encoding UTF8
+$pkgText = [System.IO.File]::ReadAllText($pkgPath)
 $pkgText = $pkgText -replace '("name"\s*:\s*")[^"]*(")', "`$1$pluginName`$2"
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($pkgPath, $pkgText, $utf8NoBom)
+[System.IO.File]::WriteAllText($pkgPath, $pkgText, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "[ok] plugin copied to $pluginDst"
 
-# 2) 注册到 cordis.patch.yml。
-$content = Get-Content $patchFile -Raw
-if ($content -match [regex]::Escape($pluginName)) {
+# 2) Register in cordis.patch.yml.
+$content = [System.IO.File]::ReadAllText($patchFile)
+if ($content.Contains($pluginName)) {
     Write-Host "[ok] cordis.patch.yml already references $pluginName"
 } else {
     Copy-Item $patchFile "$patchFile.bak" -Force
     Write-Host "[ok] backed up cordis.patch.yml -> cordis.patch.yml.bak"
 
-    $entry = @"
-- insert:
-    - id: $pluginName
-      name: '$pluginName'
-"@
-
-    if ($content.TrimEnd().EndsWith('[]')) {
-        $new = $content -replace '\[\]\s*$', $entry
+    $entry = "- insert:`r`n    - id: $pluginName`r`n      name: '$pluginName'"
+    $trimmed = $content.Trim()
+    if ($trimmed -eq '' -or $trimmed -eq '[]') {
+        $new = $entry + "`r`n"
     } else {
         $new = $content.TrimEnd() + "`r`n`r`n" + $entry + "`r`n"
     }
-    Set-Content -Path $patchFile -Value $new -Encoding utf8
+    [System.IO.File]::WriteAllText($patchFile, $new, (New-Object System.Text.UTF8Encoding($false)))
     Write-Host "[ok] registered $pluginName in cordis.patch.yml"
 }
 
