@@ -1,0 +1,16 @@
+{
+  "name": "my-pet",
+  "label": "我的桌宠",
+  "spritesheetPath": "spritesheet.webp",
+  "spriteVersionNumber": 2,
+  "size": 120,
+  "pin": "bottom-right",
+  "normalize": null,
+  "bubble": {
+    "enabled": true,
+    "maxChars": 140,
+    "runningText": "运行中：{tool}…",
+    "workingText": "工作中…",
+    "thinkingText": "思考中…"
+  }
+}

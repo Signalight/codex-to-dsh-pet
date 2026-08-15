@@ -1,0 +1,15 @@
+# 用户素材与构建产物（不随框架分发）
+spritesheet.webp
+*.webp
+*.png
+*.gif
+
+# 用户配置（从 config.example.json 复制而来）
+config.json
+
+# 构建产物（node build.js 生成）
+lib/client.js
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
