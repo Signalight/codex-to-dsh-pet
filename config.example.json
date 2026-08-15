@@ -6,6 +6,10 @@
   "size": 120,
   "pin": "bottom-right",
   "normalize": null,
+  "look": {
+    "enabled": true,
+    "deadzone": 28
+  },
   "bubble": {
     "enabled": true,
     "maxChars": 140,

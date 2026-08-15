@@ -10,7 +10,7 @@ $workspace = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $workspace 'config.json'
 $pluginName = 'codex-to-dsh-pet'
 if (Test-Path $configPath) {
-    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+    $config = Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($config.name) { $pluginName = $config.name }
 }
 
@@ -31,9 +31,11 @@ New-Item -ItemType Directory -Force -Path (Join-Path $pluginDst 'lib') | Out-Nul
 Copy-Item (Join-Path $workspace 'package.json') $pluginDst -Force
 Copy-Item (Join-Path $workspace 'lib\index.js') (Join-Path $pluginDst 'lib\index.js') -Force
 Copy-Item (Join-Path $workspace 'lib\client.js') (Join-Path $pluginDst 'lib\client.js') -Force
-$pkgText = Get-Content (Join-Path $pluginDst 'package.json') -Raw
+$pkgPath = Join-Path $pluginDst 'package.json'
+$pkgText = Get-Content $pkgPath -Raw -Encoding UTF8
 $pkgText = $pkgText -replace '("name"\s*:\s*")[^"]*(")', "`$1$pluginName`$2"
-Set-Content (Join-Path $pluginDst 'package.json') -Value $pkgText -Encoding utf8
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($pkgPath, $pkgText, $utf8NoBom)
 Write-Host "[ok] plugin copied to $pluginDst"
 
 # 2) 注册到 cordis.patch.yml。

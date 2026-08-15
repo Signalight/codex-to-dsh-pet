@@ -36,11 +36,18 @@ Copy-Item config.example.json config.json
 | `size` | 显示宽度 px | `120` |
 | `pin` | 初始位置（`bottom-right` / `bottom-left` / …） | `bottom-right` |
 | `normalize` | 可选：逐行尺寸归一化 `[null, …, { s, cx, cy }, …]` | 无 |
+| `look.enabled` | 是否开启「眼睛跟随鼠标」；旧版桌宠（无注视帧）设为 `false` | `true` |
+| `look.deadzone` | 注视死区（px，指针距桌宠中心小于该值不触发） | `28` |
 | `bubble.enabled` | 是否显示进度气泡 | `true` |
 | `bubble.maxChars` | 流式文本截取长度 | `140` |
 | `bubble.runningText` | 工具运行时文案（`{tool}` 会被替换成工具名） | `运行中：{tool}…` |
 | `bubble.workingText` | 工作但无工具名时的文案 | `工作中…` |
 | `bubble.thinkingText` | 思考时的文案 | `思考中…` |
+
+> 💡 **旧版（v1）桌宠**：很多较早的 Codex 桌宠图集只有 9 行、没有最后两行「注视」
+> 帧。请把 `spriteVersionNumber` 设为 `1`（此时会自动忽略鼠标追踪、保持待机），
+> 或把 `look.enabled` 设为 `false`。若你照搬 `config.example.json` 而忘了改
+> `spriteVersionNumber`，渲染器会去读不存在的第 9、10 行而显示异常。
 
 ### 3. 构建
 
