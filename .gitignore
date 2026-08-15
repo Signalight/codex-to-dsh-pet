@@ -9,6 +9,7 @@ config.json
 
 # 构建产物（node build.js 生成）
 lib/client.js
+config.effective.json
 
 # 系统 / 编辑器
 .DS_Store

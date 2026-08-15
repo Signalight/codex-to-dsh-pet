@@ -15,22 +15,24 @@
 
 ### 1. 准备素材
 
-把一张 Codex 桌宠的 spritesheet（通常是 `spritesheet.webp`）放进本目录。
+把一张 Codex 桌宠的 spritesheet **命名成你的宠物名**（如 `fluffy.webp`）放进本目录。
+插件名会自动取自这个文件名——一张图集 = 一个插件。
 
-### 2. 配置
+### 2. 配置（可选）
 
-复制示例配置并修改：
+`name` / `label` **不用填**（自动从图集文件名推导）。只有需要改尺寸、归一化、
+气泡文案等时才建 `config.json`：
 
 ```powershell
 Copy-Item config.example.json config.json
 ```
 
-`config.json` 字段：
+`config.json` 字段（`name`/`label` 可省略，缺省取图集文件名）：
 
 | 字段 | 说明 | 默认 |
 |---|---|---|
-| `name` | 插件名（也是 node_modules 目录名 / 注册名） | `codex-to-dsh-pet` |
-| `label` | 悬浮层里显示的标签 | `桌宠 Pet` |
+| `name` | 插件名（也是 node_modules 目录名 / 注册名） | **图集文件名** |
+| `label` | 悬浮层里显示的标签 | **图集文件名** |
 | `spritesheetPath` | 图集相对路径 | `spritesheet.webp` |
 | `spriteVersionNumber` | 图集版本：`1`（8×9）或 `2`（8×11，含注视帧） | `2` |
 | `size` | 显示宽度 px | `120` |
@@ -55,7 +57,8 @@ Copy-Item config.example.json config.json
 node build.js
 ```
 
-会读取 `config.json` + 图集，生成自包含的 `lib/client.js`。
+会自动检测图集、从文件名推导宠物名，生成自包含的 `lib/client.js` 和
+`config.effective.json`。
 
 构建后可以运行冒烟测试验证产物：
 
@@ -79,6 +82,18 @@ dsh web
 ```
 
 然后在浏览器硬刷新 `http://127.0.0.1:3080`（`Ctrl+Shift+R`），桌宠就出现在右下角了。
+
+### 6. 选择激活哪个桌宠
+
+安装了多个桌宠后，用 `select-pet.ps1` 切换激活状态：
+
+```powershell
+.\select-pet.ps1          # 交互菜单：输入序号切换，q 保存退出
+.\select-pet.ps1 -List    # 只查看当前状态，不修改
+```
+
+它会扫描 node_modules 里所有桌宠插件（`dsh.client` 包），列出激活状态，并把你的
+选择写回 `cordis.patch.yml`（自动备份）。改完重启 `dsh web` + 硬刷新即可生效。
 
 ## 图集格式
 
@@ -111,9 +126,10 @@ Codex 桌宠图集是固定布局的精灵图：
 ```
 .
 ├── config.example.json     # 示例配置
-├── build.js                # 内联图集 + 配置 → lib/client.js
+├── build.js                # 内联图集 + 配置 → lib/client.js（名字取自图集文件名）
 ├── verify-bundle.cjs       # 构建产物冒烟测试
 ├── install-to-dsh.ps1      # 一键安装
+├── select-pet.ps1          # 选择激活哪个桌宠
 ├── lib/
 │   ├── index.js            # 宿主（Node）半身
 │   ├── client.template.js  # 浏览器半身源码模板

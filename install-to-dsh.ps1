@@ -1,15 +1,20 @@
 # install-to-dsh.ps1
 # Install the built codex-to-dsh-pet plugin into the DSH "web" profile.
-# Prerequisite: run `node build.js` first (produces lib/client.js).
-# Plugin name comes from config.json `name` (default: codex-to-dsh-pet).
+# Prerequisite: run `node build.js` first (produces lib/client.js + config.effective.json).
+# Plugin name comes from config.effective.json `name` (derived from the spritesheet
+# filename), falling back to config.json then codex-to-dsh-pet.
 # Idempotent: safe to re-run; backs up cordis.patch.yml before editing.
 
 $ErrorActionPreference = 'Stop'
 
 $workspace = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configPath = Join-Path $workspace 'config.json'
+$effectivePath = Join-Path $workspace 'config.effective.json'
 $pluginName = 'codex-to-dsh-pet'
-if (Test-Path $configPath) {
+if (Test-Path $effectivePath) {
+    $eff = ([System.IO.File]::ReadAllText($effectivePath)) | ConvertFrom-Json
+    if ($eff.name) { $pluginName = $eff.name }
+} elseif (Test-Path $configPath) {
     $config = ([System.IO.File]::ReadAllText($configPath)) | ConvertFrom-Json
     if ($config.name) { $pluginName = $config.name }
 }
