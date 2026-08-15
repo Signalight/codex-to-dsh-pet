@@ -27,27 +27,37 @@ if (fs.existsSync(configPath)) {
   }
 }
 
-// 2) Locate the spritesheet: config.spritesheetPath, or auto-detect a single image.
-function locateSpritesheet() {
-  if (config.spritesheetPath) {
-    const p = path.resolve(root, config.spritesheetPath);
-    if (!fs.existsSync(p)) throw new Error(`找不到图集: ${p}`);
-    return p;
+// 2) Locate the spritesheet.
+//   - config.spritesheetPath, if that file actually exists;
+//   - otherwise auto-detect the single .webp/.png/.gif. A stale spritesheetPath
+//     means the user renamed the file, so we ignore the stale name/label too.
+let sheetPath = null;
+let stalePath = false;
+if (config.spritesheetPath) {
+  const p = path.resolve(root, config.spritesheetPath);
+  if (fs.existsSync(p)) {
+    sheetPath = p;
+  } else {
+    stalePath = true; // configured path is missing -> renamed, fall back to auto-detect
   }
-  const imgs = fs.readdirSync(root).filter((f) => /\.(webp|png|gif)$/i.test(f));
-  if (imgs.length === 1) return path.join(root, imgs[0]);
-  if (imgs.length === 0) {
-    throw new Error('本目录没有图集（.webp/.png/.gif）。请把图集命名成宠物名（如 fluffy.webp）放到这里，或在 config.json 里设置 spritesheetPath。');
-  }
-  throw new Error(`本目录有多张图集，请用 config.json 的 spritesheetPath 指定：${imgs.join(', ')}`);
 }
-const sheetPath = locateSpritesheet();
+if (!sheetPath) {
+  const imgs = fs.readdirSync(root).filter((f) => /\.(webp|png|gif)$/i.test(f));
+  if (imgs.length === 1) {
+    sheetPath = path.join(root, imgs[0]);
+  } else if (imgs.length === 0) {
+    throw new Error('本目录没有图集（.webp/.png/.gif）。请把图集命名成宠物名（如 fluffy.webp）放到这里，或在 config.json 里设置 spritesheetPath。');
+  } else {
+    throw new Error(`本目录有多张图集，请用 config.json 的 spritesheetPath 指定：${imgs.join(', ')}`);
+  }
+}
 const sheetBase = path.basename(sheetPath, path.extname(sheetPath)); // e.g. "fluffy"
 
 // 3) Resolve the effective config: name/label default to the spritesheet filename.
+// When the spritesheetPath was stale (file renamed), also ignore the stale name/label.
 const effective = Object.assign({}, config, {
-  name: config.name || sheetBase,
-  label: config.label || sheetBase,
+  name: (stalePath ? null : config.name) || sheetBase,
+  label: (stalePath ? null : config.label) || sheetBase,
 });
 
 // 4) Inline the spritesheet and inject the effective config.
