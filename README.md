@@ -33,8 +33,8 @@ Copy-Item config.example.json config.json
 |---|---|---|
 | `name` | 插件名（也是 node_modules 目录名 / 注册名） | **图集文件名** |
 | `label` | 悬浮层里显示的标签 | **图集文件名** |
-| `spritesheetPath` | 图集相对路径 | `spritesheet.webp` |
-| `spriteVersionNumber` | 图集版本：`1`（8×9）或 `2`（8×11，含注视帧） | `2` |
+| `spritesheetPath` | 图集相对路径 | 自动检测 |
+| `spriteVersionNumber` | 图集版本：`1`（8×9）或 `2`（8×11，含注视帧） | **自动检测**（按图集尺寸 1872/2288） |
 | `size` | 显示宽度 px | `120` |
 | `pin` | 初始位置（`bottom-right` / `bottom-left` / …） | `bottom-right` |
 | `normalize` | 可选：逐行尺寸归一化 `[null, …, { s, cx, cy }, …]` | 无 |
@@ -46,10 +46,10 @@ Copy-Item config.example.json config.json
 | `bubble.workingText` | 工作但无工具名时的文案 | `工作中…` |
 | `bubble.thinkingText` | 思考时的文案 | `思考中…` |
 
-> 💡 **旧版（v1）桌宠**：很多较早的 Codex 桌宠图集只有 9 行、没有最后两行「注视」
-> 帧。请把 `spriteVersionNumber` 设为 `1`（此时会自动忽略鼠标追踪、保持待机），
-> 或把 `look.enabled` 设为 `false`。若你照搬 `config.example.json` 而忘了改
-> `spriteVersionNumber`，渲染器会去读不存在的第 9、10 行而显示异常。
+> 💡 **版本自动识别**：build.js 会按图集尺寸自动判断 v1/v2——高 **1872px = v1**
+> （9 行，无注视帧，自动关闭鼠标追踪），高 **2288px = v2**（11 行，含 16 方向注视帧，
+> 自动开启鼠标追踪）。所以**一般不需要手动设 `spriteVersionNumber`**；只有当你的图集
+> 不是标准尺寸时，才需要在 `config.json` 里显式指定。
 
 ### 3. 构建
 
