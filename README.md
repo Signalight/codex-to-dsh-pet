@@ -151,3 +151,6 @@ Copy-Item "$env:USERPROFILE\.dsh\profiles\web\cordis.patch.yml.bak" `
 
 插件代码按 [MIT](./LICENSE) 授权。关于 Codex 桌宠素材/格式的版权说明，请阅读
 [LEGAL.md](./LEGAL.md)。
+
+## 致谢
+感谢@tuskinekinase 提供灵感和鼓励~
