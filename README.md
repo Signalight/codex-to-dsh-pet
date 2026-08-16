@@ -1,5 +1,7 @@
 # codex-to-dsh-pet
 
+![banner](banner.png)
+
 把 **Codex 桌宠**（spritesheet 图集）移植为 **DeepSeek Harness（DSH）网页 GUI 桌宠**的通用框架 / 适配器。
 
 - 零依赖的核心渲染器（纯 DOM，无构建步骤）
@@ -192,6 +194,14 @@ Copy-Item "$env:USERPROFILE\.dsh\profiles\web\cordis.patch.yml.bak" `
           "$env:USERPROFILE\.dsh\profiles\web\cordis.patch.yml" -Force
 # 然后重启 dsh web
 ```
+
+## 更新日志
+
+- **2026-08-16** 修复多桌宠同时加载报错（模板顶层 `const` 用 IIFE 包裹），现在可同时开启多个桌宠。
+- **2026-08-16** `build.js` 按图集尺寸自动识别 v1/v2（高 1872px=v1、2288px=v2），v2 自动开启鼠标追踪，无需手填 `spriteVersionNumber`。
+- **2026-08-16** 图集文件名自动推导宠物名（一张图集 = 一个插件）；`spritesheetPath` 过期时自动回退；新增 `select-pet.ps1` 切换激活。
+- **2026-08-15** 修复安装脚本的 UTF-8 编码与目录创建问题；新增 `look` 配置（旧版 v1 桌宠可关闭注视）；README 增加「极简安装方法」。
+- **2026-08-15** 初始版本：通用框架（渲染器 + DSH 适配层 + 进度气泡 + 拖拽 / 悬停挥手 / 双击跳跃 / 眼睛跟随 + 逐行尺寸归一化）。
 
 ## 许可与版权
 

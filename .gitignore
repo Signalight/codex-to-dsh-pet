@@ -4,6 +4,9 @@ spritesheet.webp
 *.png
 *.gif
 
+# 仓库自身资源（banner 等）例外
+!banner.png
+
 # 用户配置（从 config.example.json 复制而来）
 config.json
 
