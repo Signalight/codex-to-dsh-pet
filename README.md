@@ -13,6 +13,52 @@
 
 ## 快速开始
 
+### 极简安装方法（零基础，照着做就行）
+
+**开始前需要两样**：① 电脑装了 [Node.js](https://nodejs.org/)（运行 `node` 用）；② 已经装好、能跑起来的 DeepSeek Harness（DSH）。
+
+**第 1 步：拿到代码**
+
+- 点仓库页绿色 **Code → Download ZIP**，下载后**解压**，得到一个 `codex-to-dsh-pet` 文件夹；
+- 或命令行克隆：`git clone https://github.com/Signalight/codex-to-dsh-pet.git`
+
+**第 2 步：打开 PowerShell（位置要对）**
+
+1. 用文件资源管理器进入解压出来的 `codex-to-dsh-pet` 文件夹；
+2. 在文件夹**空白处**，按住 **Shift** 键 + **鼠标右键**；
+3. 菜单里选 **"在此处打开 PowerShell 窗口"**（Windows 11 可能是"在终端中打开"，一样）。
+
+窗口里光标前面显示着 `...\codex-to-dsh-pet`，就说明位置对了。
+
+**第 3 步：放图集**
+
+把桌宠图集（`.webp` 图片）**改名成你想叫的宠物名**（如 `anaxa.webp`），**拖进** `codex-to-dsh-pet` 文件夹。
+
+**第 4 步：运行两条命令**
+
+在 PowerShell 窗口里依次输入下面两条，**每条输完按 Enter**：
+
+```powershell
+node build.js
+```
+
+```powershell
+.\install-to-dsh.ps1
+```
+
+看到 `Done.` 就成功了。
+
+**第 5 步：重启并刷新**
+
+重启 `dsh web`，然后在浏览器**硬刷新** `http://127.0.0.1:3080`（`Ctrl+Shift+R`），桌宠就出现在右下角了 🎉
+
+> **常见报错**：
+> - 出现「禁止运行脚本」→ 先输入 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 回车（选 `Y`），再重跑第 4 步。
+> - 出现「`node` 不是内部或外部命令」→ 还没装 Node.js，去 [nodejs.org](https://nodejs.org/) 装一下。
+> - 装了多个桌宠后想切换，用 `.\select-pet.ps1`（见下文）。
+
+---
+
 ### 1. 准备素材
 
 把一张 Codex 桌宠的 spritesheet **命名成你的宠物名**（如 `fluffy.webp`）放进本目录。
