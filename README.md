@@ -121,8 +121,17 @@ node verify-bundle.cjs
 .\install-to-dsh.ps1
 ```
 
-脚本会把插件复制到 `~/.dsh/profiles/node_modules/<name>` 并注册到
-`cordis.patch.yml`（幂等、自动备份）。
+脚本会自动定位 DSH home，复制插件到 `<DSH home>/profiles/node_modules/<name>`，
+并注册到 `<DSH home>/profiles/web/cordis.patch.yml`（幂等、自动备份）。
+
+> **DSH home 定位**（`install-to-dsh.ps1` / `select-pet.ps1` 通用，按序探测）：
+> 1. `$env:DSH_HOME`（若已设置则优先）；
+> 2. `~/.dsh`（命令行版 dsh 的常规位置，存在才用）；
+> 3. `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\data\dsh`
+>    （DeepSeek Harness **桌面应用**的数据目录）。
+>
+> 命令行版用户通常在 `~/.dsh`；桌面应用版用户通常在 `%APPDATA%\...\data\dsh`。
+> 注意：桌面应用**不会**把 `DSH_HOME` 导出到你的终端，脚本靠上面的探测自动找到。
 
 ### 5. 重启并刷新
 
@@ -190,14 +199,21 @@ Codex 桌宠图集是固定布局的精灵图：
 ## 回滚
 
 ```powershell
-Remove-Item -Recurse -Force "$env:USERPROFILE\.dsh\profiles\node_modules\<name>"
-Copy-Item "$env:USERPROFILE\.dsh\profiles\web\cordis.patch.yml.bak" `
-          "$env:USERPROFILE\.dsh\profiles\web\cordis.patch.yml" -Force
+# 与安装脚本相同的 DSH home 探测逻辑
+$dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } `
+    elseif (Test-Path (Join-Path $env:USERPROFILE '.dsh')) { Join-Path $env:USERPROFILE '.dsh' } `
+    else { Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\data\dsh' }
+$profileDir = Join-Path $dshHome 'profiles\web'
+$nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
+
+Remove-Item -Recurse -Force (Join-Path $nodeModules '<name>')
+Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -Force
 # 然后重启 dsh web
 ```
 
 ## 更新日志
 
+- **2026-08-16** 修复：`build.js` 自动检测忽略仓库自带的 `banner.png`（此前必报「多张图集」）；`install-to-dsh.ps1` / `select-pet.ps1` 支持 `DSH_HOME` 三级探测（`$env:DSH_HOME` → `~/.dsh` → 桌面应用 `%APPDATA%\...\data\dsh`）；`install-to-dsh.ps1` 写补丁时丢弃 `[]` 占位符，修复生成的 `cordis.patch.yml` 为非法 YAML 的问题。
 - **2026-08-16** 修复多桌宠同时加载报错（模板顶层 `const` 用 IIFE 包裹），现在可同时开启多个桌宠。
 - **2026-08-16** `build.js` 按图集尺寸自动识别 v1/v2（高 1872px=v1、2288px=v2），v2 自动开启鼠标追踪，无需手填 `spriteVersionNumber`。
 - **2026-08-16** 图集文件名自动推导宠物名（一张图集 = 一个插件）；`spritesheetPath` 过期时自动回退；新增 `select-pet.ps1` 切换激活。
