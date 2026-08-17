@@ -13,12 +13,40 @@
 - 工作时头顶弹出**进度气泡**（工具名 / 流式文本 / "思考中…"）
 - 逐行**尺寸归一化**，修正某些图集里姿势大小不一致的问题
 
-> ⚠️ 本框架**不包含任何桌宠素材**。你需要自己准备一张拥有合法使用权的
-> spritesheet，详见 [LEGAL.md](./LEGAL.md)。
+> ⚠️ 本框架（构建脚本）**不内置第三方桌宠素材**。随附的运行时插件内置一只
+> **示例桌宠 `nastya`（娜斯佳，原创角色，CC BY-NC 4.0）**，仅用于演示，详见 [LEGAL.md](./LEGAL.md)。
 
-## 快速开始
+## 推荐：运行时插件（装一次 + 图形界面导入）
 
-### 极简安装方法（零基础，照着做就行）
+`packages/dsh-codex-pet` 是一个**运行时插件**——装一次，之后在 DSH 设置里点按钮导入
+`.webp` 图集即可，**不用再跑命令行**。支持换宠、大小、位置、气泡颜色/透明度，并内置
+一只示例桌宠 `nastya`（娜斯佳，原创角色，CC BY-NC）。
+
+**安装（仅一次）：**
+
+1. 在解压出的 `codex-to-dsh-pet` 文件夹里打开 PowerShell（空白处 **Shift + 右键** → 在此处打开 PowerShell）；
+2. 运行：
+
+```powershell
+.\install-runtime.ps1
+```
+
+3. 重启 `dsh web`，浏览器硬刷新 `http://127.0.0.1:3080`（Ctrl+Shift+R）。
+
+**之后加桌宠（全图形界面）：** 打开 **设置 → 桌宠**，点 **导入桌宠**，选一张 `.webp`
+图集即可（可输入中文名，宠物 id 自动取自文件名）。详见
+[packages/dsh-codex-pet/README.md](./packages/dsh-codex-pet/README.md)。
+
+> 📢 **给早期用户**：如果你之前用下面「旧方法」给每只桌宠单独装过插件，它们**仍然
+> 有效**，不会失效。想换到新方式：先跑一次上面的 `install-runtime.ps1` 装上运行时
+> 插件，之后新桌宠都用「设置 → 桌宠 → 导入」添加；旧的每宠插件可保留，也可先用
+> `.\select-pet.ps1` 停用，再手动删除 `profiles\node_modules\<宠物名>` 及补丁里的对应行。
+
+---
+
+## 旧方法：每宠构建一个插件（build.js）
+
+### 安装步骤（零基础，照着做就行）
 
 **开始前需要两样**：① 电脑装了 [Node.js](https://nodejs.org/)（运行 `node` 用）；② 已经装好、能跑起来的 DeepSeek Harness（DSH）。
 
@@ -37,7 +65,7 @@
 
 **第 3 步：放图集**
 
-把桌宠图集（`.webp` 图片）**改名成你想叫的宠物名**（如 `big-blue-fish.webp`），**拖进** `codex-to-dsh-pet` 文件夹。
+把桌宠图集（`.webp` 图片）**改名成你想叫的宠物名**（如 `nastya.webp`），**拖进** `codex-to-dsh-pet` 文件夹。
 
 **第 4 步：运行两条命令**
 
@@ -114,8 +142,8 @@ node build.js
 只想构建**指定的一张图集**时，可以用一步命令（写 `config.json` + 跑 `build.js`）：
 
 ```powershell
-.\build-pet.ps1 big-blue-fish                              # 名字与图集文件名一致
-.\build-pet.ps1 big-blue-fish -NodePath C:\path\to\node.exe # 指定 node 路径（一般不用）
+.\build-pet.ps1 nastya                                   # 名字与图集文件名一致
+.\build-pet.ps1 nastya -NodePath C:\path\to\node.exe     # 指定 node 路径（一般不用）
 ```
 
 构建后可以运行冒烟测试验证产物：
@@ -225,8 +253,9 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 更新日志
 
+- **2026-08-17** 新增运行时插件 `packages/dsh-codex-pet`：装一次即可，图形界面导入桌宠（webp/png/gif）、换宠 / 大小 / 位置 / 气泡颜色与透明度；示例桌宠改用原创角色 **nastya（娜斯佳）**，按 **CC BY-NC 4.0** 授权（详见 LEGAL.md）。
 - **2026-08-17** 新增：英文版说明（`README.en.md`），README 顶部增加中/英切换链接；并给 GitHub 仓库添加了简介（description）与标签（topics，含 `dsh-plugin`）。
-- **2026-08-17** 文档：示例宠物名统一改用虚构的 `big-blue-fish`。
+- **2026-08-17** 文档：示例宠物名不再使用游戏角色名 `anaxa`，改用原创角色 `nastya`。
 - **2026-08-17** 重构：DSH home 探测抽到共享的 `dsh-home.ps1`（install / select 脚本与 README 回滚代码统一引用）；`build-pet.ps1` 新增 `-NodePath` 参数，不再依赖作者本机路径；`select-pet.ps1` 保存时保留注释位置与非桌宠补丁条目，与 `install-to-dsh.ps1` 行为一致。
 - **2026-08-16** 修复：`build.js` 自动检测忽略仓库自带的 `banner.png`（此前必报「多张图集」）；`install-to-dsh.ps1` / `select-pet.ps1` 支持 `DSH_HOME` 三级探测（`$env:DSH_HOME` → `~/.dsh` → 桌面应用 `%APPDATA%\...\data\dsh`）；`install-to-dsh.ps1` 写补丁时丢弃 `[]` 占位符，修复生成的 `cordis.patch.yml` 为非法 YAML 的问题。
 - **2026-08-16** 修复多桌宠同时加载报错（模板顶层 `const` 用 IIFE 包裹），现在可同时开启多个桌宠。
@@ -237,8 +266,9 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 许可与版权
 
-插件代码按 [MIT](./LICENSE) 授权。关于 Codex 桌宠素材/格式的版权说明，请阅读
-[LEGAL.md](./LEGAL.md)。
+- 插件代码按 [MIT](./LICENSE) 授权。
+- 内置示例桌宠 `nastya`（娜斯佳）为**原创角色**，其图集按 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)（署名-非商业性使用）授权。
+- 关于 Codex 桌宠素材/格式的版权说明，请阅读 [LEGAL.md](./LEGAL.md)。
 
 ## 致谢
 感谢@tuskinekinase 提供灵感和鼓励~

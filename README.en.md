@@ -13,10 +13,40 @@ This project is written with DSH — if you find any bugs or errors, please let 
 - **Progress bubble** above the pet while working (tool name / streaming text / "thinking…")
 - Per-row **size normalization** to fix inconsistent pose sizes in some atlases
 
-> ⚠️ This framework does **not** include any pet artwork. You must provide your own
-> spritesheet with legitimate usage rights — see [LEGAL.md](./LEGAL.md).
+> ⚠️ This framework (the build scripts) does **not** bundle third-party pet artwork.
+> The bundled runtime plugin ships one **example pet `nastya` (娜斯佳, an original
+> character, CC BY-NC 4.0)** for demonstration — see [LEGAL.md](./LEGAL.md).
 
-## Quick Start
+## Recommended: runtime plugin (install once + GUI import)
+
+`packages/dsh-codex-pet` is a **runtime plugin** — install it once, then import `.webp`
+atlases from a button in the DSH settings surface, with **no command line**. It supports
+pet switching, size, position, bubble color/opacity, and ships one example pet `nastya`
+(娜斯佳, an original character, CC BY-NC).
+
+**Install (once only):**
+
+1. Open PowerShell inside the extracted `codex-to-dsh-pet` folder (Shift + right-click → "Open PowerShell window here");
+2. Run:
+
+```powershell
+.\install-runtime.ps1
+```
+
+3. Restart `dsh web`, then hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R).
+
+**Adding pets afterwards (all in the GUI):** open **Settings → 桌宠**, click **导入桌宠**,
+pick a `.webp` atlas (you can enter a display name; the pet id comes from the filename).
+See [packages/dsh-codex-pet/README.md](./packages/dsh-codex-pet/README.md).
+
+> 📢 **For existing users**: pets installed with the legacy method below **keep working**.
+> To switch: run `install-runtime.ps1` once, then add new pets via Settings → 桌宠 → import.
+> Legacy per-pet plugins can stay, or be disabled with `.\select-pet.ps1` and then removed
+> manually (`profiles\node_modules\<name>` plus the matching patch line).
+
+---
+
+## Legacy method: one plugin per pet (build.js)
 
 ### Minimal install (for absolute beginners)
 
@@ -37,7 +67,7 @@ If the prompt shows `...\codex-to-dsh-pet`, you're in the right place.
 
 **Step 3: Drop in your spritesheet**
 
-Rename your pet spritesheet (`.webp` image) to whatever you want to call your pet (e.g. `big-blue-fish.webp`), then **drag it into** the `codex-to-dsh-pet` folder.
+Rename your pet spritesheet (`.webp` image) to whatever you want to call your pet (e.g. `nastya.webp`), then **drag it into** the `codex-to-dsh-pet` folder.
 
 **Step 4: Run two commands**
 
@@ -109,8 +139,8 @@ It auto-detects the atlas, derives the pet name from the filename, and generates
 To build **one specific atlas**, use the one-command shortcut (writes `config.json` + runs `build.js`):
 
 ```powershell
-.\build-pet.ps1 big-blue-fish                               # name must match the atlas filename
-.\build-pet.ps1 big-blue-fish -NodePath C:\path\to\node.exe # optional: explicit node path
+.\build-pet.ps1 nastya                                      # name must match the atlas filename
+.\build-pet.ps1 nastya -NodePath C:\path\to\node.exe        # optional: explicit node path
 ```
 
 You can run a smoke test to verify the build output:
@@ -216,8 +246,9 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## Changelog
 
+- **2026-08-17** Added the `packages/dsh-codex-pet` runtime plugin (install once; GUI import of pets, pet switching / size / position / bubble color & opacity); the example pet is now the original character **nastya (娜斯佳)**, licensed CC BY-NC 4.0 (see LEGAL.md).
 - **2026-08-17** Added an English README (`README.en.md`) with a language switcher at the top; added a repository description on GitHub.
-- **2026-08-17** Docs: example pet name unified to the fictional `big-blue-fish`.
+- **2026-08-17** Docs: example pet no longer uses the game character name `anaxa`; it now uses the original character `nastya`.
 - **2026-08-17** Refactor: DSH home detection extracted into shared `dsh-home.ps1` (used by the install/select scripts and the README rollback snippet); `build-pet.ps1` gained `-NodePath`, no longer depending on the author's machine path; `select-pet.ps1` now preserves comments and non-pet patch entries on save, matching `install-to-dsh.ps1`.
 - **2026-08-16** Fix: `build.js` auto-detection ignores the repo's own `banner.png`; `install-to-dsh.ps1` / `select-pet.ps1` support the three-level `DSH_HOME` probe (`$env:DSH_HOME` → `~/.dsh` → desktop app `%APPDATA%\...\data\dsh`); `install-to-dsh.ps1` drops the `[]` placeholder when writing the patch, fixing invalid YAML in generated `cordis.patch.yml`.
 - **2026-08-16** Fix: loading multiple pets at once no longer errors (template top-level `const` wrapped in an IIFE); several pets can now be enabled simultaneously.
@@ -228,7 +259,9 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## License & copyright
 
-Plugin code is licensed under [MIT](./LICENSE). For copyright notes about Codex pet artwork/format, see [LEGAL.md](./LEGAL.md).
+- Plugin code is licensed under [MIT](./LICENSE).
+- The bundled example pet `nastya` (娜斯佳) is an **original character**; its atlas is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (Attribution-NonCommercial).
+- For copyright notes about Codex pet artwork/format, see [LEGAL.md](./LEGAL.md).
 
 ## Acknowledgements
 

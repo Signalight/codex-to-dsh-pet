@@ -1,0 +1,10 @@
+# dsh-codex-pet bundle patch: inserts its plugin row into the web plugin roster.
+# One row mounts BOTH halves: the host side (Codex atlas registry, the
+# /api/codex-pet/* JSON API and the /codex-pet/<id>/* asset routes) and the
+# browser side (the overlay renderer served from this package's src/client.js,
+# plus built-in pet assets under assets/). Adding a pet means dropping a
+# <pet>/pet.json + <pet>/spritesheet.webp into assets/ or ~/.dsh/pets — never
+# touching host or client code.
+- insert:
+    - id: codex-pet
+      name: 'dsh-codex-pet'
