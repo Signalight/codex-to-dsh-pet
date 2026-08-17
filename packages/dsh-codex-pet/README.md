@@ -30,10 +30,10 @@ plugin **once**, then add pets as plain data files — no per-pet code.
 **Recommended — one command (needs pnpm):**
 
 ```powershell
-# from npm (published)
+# from npm
 dsh plugin --profile web add @signalight/dsh-codex-pet
 
-# or straight from GitHub (no npm account needed)
+# or straight from GitHub
 dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/dsh-codex-pet
 ```
 
