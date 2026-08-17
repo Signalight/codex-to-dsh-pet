@@ -217,7 +217,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 ## Changelog
 
 - **2026-08-17** Added an English README (`README.en.md`) with a language switcher at the top; added a repository description on GitHub.
-- **2026-08-17** Docs: example pet name unified to the fictional `big-blue-fish`; no longer uses the game character name `anaxa`.
+- **2026-08-17** Docs: example pet name unified to the fictional `big-blue-fish`.
 - **2026-08-17** Refactor: DSH home detection extracted into shared `dsh-home.ps1` (used by the install/select scripts and the README rollback snippet); `build-pet.ps1` gained `-NodePath`, no longer depending on the author's machine path; `select-pet.ps1` now preserves comments and non-pet patch entries on save, matching `install-to-dsh.ps1`.
 - **2026-08-16** Fix: `build.js` auto-detection ignores the repo's own `banner.png`; `install-to-dsh.ps1` / `select-pet.ps1` support the three-level `DSH_HOME` probe (`$env:DSH_HOME` → `~/.dsh` → desktop app `%APPDATA%\...\data\dsh`); `install-to-dsh.ps1` drops the `[]` placeholder when writing the patch, fixing invalid YAML in generated `cordis.patch.yml`.
 - **2026-08-16** Fix: loading multiple pets at once no longer errors (template top-level `const` wrapped in an IIFE); several pets can now be enabled simultaneously.
