@@ -1,4 +1,4 @@
-# dsh-codex-pet
+# @signalight/dsh-codex-pet
 
 A **DSH web-GUI pet runtime plugin** — one plugin that renders *any* Codex
 spritesheet-atlas pet (v1 / v2) as a draggable desktop pet in the DeepSeek
@@ -27,23 +27,30 @@ plugin **once**, then add pets as plain data files — no per-pet code.
 
 ## Install
 
-> DSH plugins are normally installed with `dsh plugin --profile web add …`,
-> which needs pnpm. If that is unavailable, use the manual route below — it is
-> what `install-runtime.ps1` automates.
+**Recommended — one command (needs pnpm):**
 
 ```powershell
-# from the codex-to-dsh-pet repository root
+# from npm (once published)
+dsh plugin --profile web add @signalight/dsh-codex-pet
+
+# or straight from GitHub (no npm account needed)
+dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/dsh-codex-pet
+```
+
+**Manual route (no pnpm):** from the repository root run
+
+```powershell
 .\install-runtime.ps1
 ```
 
-This copies `packages/dsh-codex-pet` into `~/.dsh/profiles/node_modules/` and
+This copies the package into `~/.dsh/profiles/node_modules/@signalight/dsh-codex-pet` and
 registers the plugin row in `~/.dsh/profiles/web/cordis.patch.yml`. Then:
 
 1. Stop the running `dsh web` process.
 2. Run `dsh web` again.
 3. Hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R).
 
-Rollback: delete `~/.dsh/profiles/node_modules/dsh-codex-pet` and restore the
+Rollback: delete `~/.dsh/profiles/node_modules/@signalight/dsh-codex-pet` and restore the
 `.bak` next to the patch file.
 
 ## Add a pet

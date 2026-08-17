@@ -22,16 +22,25 @@
 `.webp` 图集即可，**不用再跑命令行**。支持换宠、大小、位置、气泡颜色/透明度，并内置
 一只示例桌宠 `nastya`（娜斯佳，原创角色，CC BY-NC）。
 
-**安装（仅一次）：**
+**安装（仅一次，任选其一）：**
 
-1. 在解压出的 `codex-to-dsh-pet` 文件夹里打开 PowerShell（空白处 **Shift + 右键** → 在此处打开 PowerShell）；
-2. 运行：
+**方式 A —— 一条命令（需要 pnpm）：**
+
+```powershell
+# 从 npm（发布后）
+dsh plugin --profile web add @signalight/dsh-codex-pet
+
+# 或直接从 GitHub（无需 npm 账号）
+dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/dsh-codex-pet
+```
+
+**方式 B —— 脚本（无需 pnpm）：** 在解压出的 `codex-to-dsh-pet` 文件夹里打开 PowerShell（空白处 **Shift + 右键** → 在此处打开 PowerShell），运行：
 
 ```powershell
 .\install-runtime.ps1
 ```
 
-3. 重启 `dsh web`，浏览器硬刷新 `http://127.0.0.1:3080`（Ctrl+Shift+R）。
+装完后：重启 `dsh web`，浏览器硬刷新 `http://127.0.0.1:3080`（Ctrl+Shift+R）。
 
 **之后加桌宠（全图形界面）：** 打开 **设置 → 桌宠**，点 **导入桌宠**，选一张 `.webp`
 图集即可（可输入中文名，宠物 id 自动取自文件名）。详见

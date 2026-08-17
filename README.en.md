@@ -24,16 +24,25 @@ atlases from a button in the DSH settings surface, with **no command line**. It 
 pet switching, size, position, bubble color/opacity, and ships one example pet `nastya`
 (娜斯佳, an original character, CC BY-NC).
 
-**Install (once only):**
+**Install (once only, pick one):**
 
-1. Open PowerShell inside the extracted `codex-to-dsh-pet` folder (Shift + right-click → "Open PowerShell window here");
-2. Run:
+**Option A — one command (needs pnpm):**
+
+```powershell
+# from npm (once published)
+dsh plugin --profile web add @signalight/dsh-codex-pet
+
+# or straight from GitHub (no npm account needed)
+dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/dsh-codex-pet
+```
+
+**Option B — script (no pnpm):** open PowerShell inside the extracted `codex-to-dsh-pet` folder (Shift + right-click → "Open PowerShell window here"), then run:
 
 ```powershell
 .\install-runtime.ps1
 ```
 
-3. Restart `dsh web`, then hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R).
+Afterwards: restart `dsh web`, then hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R).
 
 **Adding pets afterwards (all in the GUI):** open **Settings → 桌宠**, click **导入桌宠**,
 pick a `.webp` atlas (you can enter a display name; the pet id comes from the filename).

@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 
 $workspace = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pkgDir = Join-Path $workspace 'packages\dsh-codex-pet'
-$pluginName = 'dsh-codex-pet'
+$pluginName = '@signalight/dsh-codex-pet'
 $pluginId = 'codex-pet'
 
 # Locate the DSH home via the shared dsh-home.ps1 (probe order documented there:
@@ -20,7 +20,7 @@ $pluginId = 'codex-pet'
 . (Join-Path $workspace 'dsh-home.ps1')
 $profileDir = Join-Path (Get-DshHome) 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
-$pluginDst = Join-Path $nodeModules $pluginName
+$pluginDst = Join-Path $nodeModules ($pluginName -replace '/', '\')
 $patchFile = Join-Path $profileDir 'cordis.patch.yml'
 
 if (-not (Test-Path $profileDir)) {

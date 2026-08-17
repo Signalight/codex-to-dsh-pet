@@ -7,4 +7,4 @@
 # touching host or client code.
 - insert:
     - id: codex-pet
-      name: 'dsh-codex-pet'
+      name: '@signalight/dsh-codex-pet'
