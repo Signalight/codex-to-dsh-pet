@@ -30,6 +30,10 @@ plugin **once**, then add pets as plain data files — no per-pet code.
 **Recommended — one command (needs pnpm):**
 
 ```powershell
+# from npm (published)
+dsh plugin --profile web add @signalight/dsh-codex-pet
+
+# or straight from GitHub (no npm account needed)
 dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/dsh-codex-pet
 ```
 
@@ -116,7 +120,7 @@ src/
 - [x] In-GUI import button (upload a Codex atlas → auto-detect → install →
       select).
 - [ ] In-GUI preview before import (live canvas frame preview).
-- [ ] Publish to npm + the `dsh-plugin` GitHub topic (marketplace).
+- [x] Published to npm (`@signalight/dsh-codex-pet`) + `dsh-plugin` GitHub topic.
 
 ## License
 

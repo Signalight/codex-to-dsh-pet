@@ -27,6 +27,10 @@
 **方式 A —— 一条命令（需要 pnpm）：**
 
 ```powershell
+# 从 npm（已发布）
+dsh plugin --profile web add @signalight/dsh-codex-pet
+
+# 或直接从 GitHub（无需 npm 账号）
 dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/dsh-codex-pet
 ```
 
