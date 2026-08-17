@@ -29,10 +29,6 @@ pet switching, size, position, bubble color/opacity, and ships one example pet `
 **Option A — one command (needs pnpm):**
 
 ```powershell
-# from npm (once published)
-dsh plugin --profile web add @signalight/dsh-codex-pet
-
-# or straight from GitHub (no npm account needed)
 dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/dsh-codex-pet
 ```
 
