@@ -112,8 +112,8 @@ node build.js
 只想构建**指定的一张图集**时，可以用一步命令（写 `config.json` + 跑 `build.js`）：
 
 ```powershell
-.\build-pet.ps1 anaxa                                   # 名字与图集文件名一致
-.\build-pet.ps1 anaxa -NodePath C:\path\to\node.exe     # 指定 node 路径（一般不用）
+.\build-pet.ps1 big-blue-fish                              # 名字与图集文件名一致
+.\build-pet.ps1 big-blue-fish -NodePath C:\path\to\node.exe # 指定 node 路径（一般不用）
 ```
 
 构建后可以运行冒烟测试验证产物：
@@ -221,6 +221,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 更新日志
 
+- **2026-08-17** 文档：示例宠物名统一改用虚构的 `big-blue-fish`，不再使用游戏角色名 `anaxa`。
 - **2026-08-17** 重构：DSH home 探测抽到共享的 `dsh-home.ps1`（install / select 脚本与 README 回滚代码统一引用）；`build-pet.ps1` 新增 `-NodePath` 参数，不再依赖作者本机路径；`select-pet.ps1` 保存时保留注释位置与非桌宠补丁条目，与 `install-to-dsh.ps1` 行为一致。
 - **2026-08-16** 修复：`build.js` 自动检测忽略仓库自带的 `banner.png`（此前必报「多张图集」）；`install-to-dsh.ps1` / `select-pet.ps1` 支持 `DSH_HOME` 三级探测（`$env:DSH_HOME` → `~/.dsh` → 桌面应用 `%APPDATA%\...\data\dsh`）；`install-to-dsh.ps1` 写补丁时丢弃 `[]` 占位符，修复生成的 `cordis.patch.yml` 为非法 YAML 的问题。
 - **2026-08-16** 修复多桌宠同时加载报错（模板顶层 `const` 用 IIFE 包裹），现在可同时开启多个桌宠。
