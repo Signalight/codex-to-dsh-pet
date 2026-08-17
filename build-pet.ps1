@@ -5,7 +5,10 @@
 #   .\build-pet.ps1 deepseek-chan
 # After building, run .\install-to-dsh.ps1 to install/update that pet.
 
-param([Parameter(Mandatory = $true)][string]$Pet)
+param(
+    [Parameter(Mandatory = $true)][string]$Pet,
+    [string]$NodePath   # optional: explicit path to node.exe; overrides PATH lookup
+)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -29,14 +32,25 @@ $cfg = @{ spritesheetPath = $sheet.Name } | ConvertTo-Json
 )
 Write-Host "[ok] config.json -> spritesheetPath: $($sheet.Name)"
 
-# Locate node: PATH first, then the portable D:\DSH\nodejs
-$node = (Get-Command node -ErrorAction SilentlyContinue).Source
+# Locate node: explicit -NodePath wins, then PATH, then a few common locations
+# (the original author's portable D:\DSH\nodejs is kept as a last-resort fallback).
+$node = $null
+if ($NodePath) {
+    if (Test-Path $NodePath) { $node = $NodePath }
+    else { throw "NodePath not found: $NodePath" }
+}
+if (-not $node) { $node = (Get-Command node -ErrorAction SilentlyContinue).Source }
 if (-not $node) {
-    $portable = 'D:\DSH\nodejs\node.exe'
-    if (Test-Path $portable) { $node = $portable }
+    foreach ($candidate in @(
+        "$env:ProgramFiles\nodejs\node.exe",
+        "$env:LOCALAPPDATA\Programs\nodejs\node.exe",
+        'D:\DSH\nodejs\node.exe'
+    )) {
+        if ($candidate -and (Test-Path $candidate)) { $node = $candidate; break }
+    }
 }
 if (-not $node) {
-    throw "node not found. Install Node.js or make sure D:\DSH\nodejs\node.exe exists."
+    throw "node not found. Install Node.js, or pass -NodePath <path-to-node.exe>."
 }
 
 Push-Location $root

@@ -1,4 +1,4 @@
-# install-to-dsh.ps1
+﻿# install-to-dsh.ps1
 # Install the built codex-to-dsh-pet plugin into the DSH "web" profile.
 # Prerequisite: run `node build.js` first (produces lib/client.js + config.effective.json).
 # Plugin name comes from config.effective.json `name` (derived from the spritesheet
@@ -19,23 +19,10 @@ if (Test-Path $effectivePath) {
     if ($config.name) { $pluginName = $config.name }
 }
 
-# Locate the DSH home: $env:DSH_HOME wins, then the conventional ~/.dsh,
-# then the DeepSeek Harness desktop app's fixed data dir. (The desktop app
-# only exports DSH_HOME to its own child processes, so user terminals fall
-# through to the app-data path.)
-$dshHome = $null
-if ($env:DSH_HOME) {
-    $dshHome = $env:DSH_HOME
-} elseif (Test-Path (Join-Path $env:USERPROFILE '.dsh')) {
-    $dshHome = Join-Path $env:USERPROFILE '.dsh'
-} else {
-    $appDataHome = Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\data\dsh'
-    if (Test-Path $appDataHome) { $dshHome = $appDataHome }
-}
-if (-not $dshHome) {
-    throw "无法定位 DSH home：请设置 DSH_HOME 环境变量，或确认已安装 DeepSeek Harness"
-}
-$profileDir = Join-Path $dshHome 'profiles\web'
+# Locate the DSH home via the shared dsh-home.ps1 (probe order documented there:
+# $env:DSH_HOME -> ~/.dsh -> desktop app %APPDATA% dir).
+. (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'dsh-home.ps1')
+$profileDir = Join-Path (Get-DshHome) 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 $pluginDst = Join-Path $nodeModules $pluginName
 $patchFile = Join-Path $profileDir 'cordis.patch.yml'

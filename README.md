@@ -109,6 +109,13 @@ node build.js
 会自动检测图集、从文件名推导宠物名，生成自包含的 `lib/client.js` 和
 `config.effective.json`。
 
+只想构建**指定的一张图集**时，可以用一步命令（写 `config.json` + 跑 `build.js`）：
+
+```powershell
+.\build-pet.ps1 anaxa                                   # 名字与图集文件名一致
+.\build-pet.ps1 anaxa -NodePath C:\path\to\node.exe     # 指定 node 路径（一般不用）
+```
+
 构建后可以运行冒烟测试验证产物：
 
 ```powershell
@@ -132,6 +139,7 @@ node verify-bundle.cjs
 >
 > 命令行版用户通常在 `~/.dsh`；桌面应用版用户通常在 `%APPDATA%\...\data\dsh`。
 > 注意：桌面应用**不会**把 `DSH_HOME` 导出到你的终端，脚本靠上面的探测自动找到。
+> 探测逻辑统一放在 `dsh-home.ps1`（install / select 脚本共用），想自定义改它即可。
 
 ### 5. 重启并刷新
 
@@ -186,6 +194,8 @@ Codex 桌宠图集是固定布局的精灵图：
 ├── config.example.json     # 示例配置
 ├── build.js                # 内联图集 + 配置 → lib/client.js（名字取自图集文件名）
 ├── verify-bundle.cjs       # 构建产物冒烟测试
+├── build-pet.ps1           # 一条命令构建指定桌宠（可选 -NodePath）
+├── dsh-home.ps1            # 共享的 DSH home 探测（install / select 共用）
 ├── install-to-dsh.ps1      # 一键安装
 ├── select-pet.ps1          # 选择激活哪个桌宠
 ├── lib/
@@ -199,11 +209,9 @@ Codex 桌宠图集是固定布局的精灵图：
 ## 回滚
 
 ```powershell
-# 与安装脚本相同的 DSH home 探测逻辑
-$dshHome = if ($env:DSH_HOME) { $env:DSH_HOME } `
-    elseif (Test-Path (Join-Path $env:USERPROFILE '.dsh')) { Join-Path $env:USERPROFILE '.dsh' } `
-    else { Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\data\dsh' }
-$profileDir = Join-Path $dshHome 'profiles\web'
+# 复用与安装脚本相同的 DSH home 探测（dsh-home.ps1）
+. .\dsh-home.ps1
+$profileDir = Join-Path (Get-DshHome) 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 
 Remove-Item -Recurse -Force (Join-Path $nodeModules '<name>')
@@ -213,6 +221,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 更新日志
 
+- **2026-08-17** 重构：DSH home 探测抽到共享的 `dsh-home.ps1`（install / select 脚本与 README 回滚代码统一引用）；`build-pet.ps1` 新增 `-NodePath` 参数，不再依赖作者本机路径；`select-pet.ps1` 保存时保留注释位置与非桌宠补丁条目，与 `install-to-dsh.ps1` 行为一致。
 - **2026-08-16** 修复：`build.js` 自动检测忽略仓库自带的 `banner.png`（此前必报「多张图集」）；`install-to-dsh.ps1` / `select-pet.ps1` 支持 `DSH_HOME` 三级探测（`$env:DSH_HOME` → `~/.dsh` → 桌面应用 `%APPDATA%\...\data\dsh`）；`install-to-dsh.ps1` 写补丁时丢弃 `[]` 占位符，修复生成的 `cordis.patch.yml` 为非法 YAML 的问题。
 - **2026-08-16** 修复多桌宠同时加载报错（模板顶层 `const` 用 IIFE 包裹），现在可同时开启多个桌宠。
 - **2026-08-16** `build.js` 按图集尺寸自动识别 v1/v2（高 1872px=v1、2288px=v2），v2 自动开启鼠标追踪，无需手填 `spriteVersionNumber`。

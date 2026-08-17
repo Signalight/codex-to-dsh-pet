@@ -1,4 +1,4 @@
-# select-pet.ps1
+﻿# select-pet.ps1
 # List installed desktop-pet plugins and toggle which ones are active
 # (i.e. which `- insert:` entries exist in cordis.patch.yml).
 #
@@ -10,23 +10,10 @@ param([switch]$List)
 
 $ErrorActionPreference = 'Stop'
 
-# Locate the DSH home: $env:DSH_HOME wins, then the conventional ~/.dsh,
-# then the DeepSeek Harness desktop app's fixed data dir. (The desktop app
-# only exports DSH_HOME to its own child processes, so user terminals fall
-# through to the app-data path.)
-$dshHome = $null
-if ($env:DSH_HOME) {
-    $dshHome = $env:DSH_HOME
-} elseif (Test-Path (Join-Path $env:USERPROFILE '.dsh')) {
-    $dshHome = Join-Path $env:USERPROFILE '.dsh'
-} else {
-    $appDataHome = Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\data\dsh'
-    if (Test-Path $appDataHome) { $dshHome = $appDataHome }
-}
-if (-not $dshHome) {
-    throw "无法定位 DSH home：请设置 DSH_HOME 环境变量，或确认已安装 DeepSeek Harness"
-}
-$profileDir = Join-Path $dshHome 'profiles\web'
+# Locate the DSH home via the shared dsh-home.ps1 (probe order documented there:
+# $env:DSH_HOME -> ~/.dsh -> desktop app %APPDATA% dir).
+. (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'dsh-home.ps1')
+$profileDir = Join-Path (Get-DshHome) 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 $patchFile = Join-Path $profileDir 'cordis.patch.yml'
 
@@ -81,12 +68,40 @@ while ($true) {
     }
 }
 
-# 3) Rewrite cordis.patch.yml: keep the comment header, regenerate insert entries.
+# 3) Rewrite cordis.patch.yml:
+#    - keep comments and any NON-pet patch content in place (same behaviour as
+#      install-to-dsh.ps1, so unrelated patch entries are never wiped)
+#    - drop the bare `[]` placeholder (invalid YAML next to real entries)
+#    - regenerate the pet insert entries from the active set
 Copy-Item $patchFile "$patchFile.bak" -Force
 
-$commentLines = @()
-foreach ($line in [System.IO.File]::ReadAllLines($patchFile)) {
-    if ($line.TrimStart().StartsWith('#')) { $commentLines += $line }
+$kept = @()
+$lines = [System.IO.File]::ReadAllLines($patchFile)
+$i = 0
+while ($i -lt $lines.Count) {
+    $line = $lines[$i]
+    $t = $line.Trim()
+    if ($t -eq '' -or $t -eq '[]') { $i++; continue }
+    if ($t -match '^-\s*insert\s*:') {
+        # Collect this YAML list item: the `- insert:` line plus its indented children.
+        $block = @($line)
+        $j = $i + 1
+        while ($j -lt $lines.Count -and $lines[$j].Trim() -ne '' -and $lines[$j] -match '^\s') {
+            $block += $lines[$j]
+            $j++
+        }
+        # Pet entries are regenerated below, so drop them; keep everything else.
+        $blockText = $block -join "`n"
+        $isPetBlock = $false
+        foreach ($p in $pets) {
+            if ($blockText -match ("name:\s*'" + [regex]::Escape($p) + "'")) { $isPetBlock = $true; break }
+        }
+        if (-not $isPetBlock) { $kept += $block }
+        $i = $j
+    } else {
+        $kept += $line
+        $i++
+    }
 }
 
 $entries = @()
@@ -96,7 +111,10 @@ foreach ($p in $pets) {
     }
 }
 
-$new = ($commentLines -join "`r`n") + "`r`n`r`n" + ($entries -join "`r`n`r`n") + "`r`n"
+$parts = @()
+if ($kept.Count -gt 0) { $parts += ($kept -join "`r`n") }
+if ($entries.Count -gt 0) { $parts += ($entries -join "`r`n`r`n") }
+$new = ($parts -join "`r`n`r`n") + "`r`n"
 [System.IO.File]::WriteAllText($patchFile, $new, (New-Object System.Text.UTF8Encoding($false)))
 
 Write-Host ""
