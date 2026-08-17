@@ -19,7 +19,23 @@ if (Test-Path $effectivePath) {
     if ($config.name) { $pluginName = $config.name }
 }
 
-$profileDir = Join-Path $env:USERPROFILE '.dsh\profiles\web'
+# Locate the DSH home: $env:DSH_HOME wins, then the conventional ~/.dsh,
+# then the DeepSeek Harness desktop app's fixed data dir. (The desktop app
+# only exports DSH_HOME to its own child processes, so user terminals fall
+# through to the app-data path.)
+$dshHome = $null
+if ($env:DSH_HOME) {
+    $dshHome = $env:DSH_HOME
+} elseif (Test-Path (Join-Path $env:USERPROFILE '.dsh')) {
+    $dshHome = Join-Path $env:USERPROFILE '.dsh'
+} else {
+    $appDataHome = Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\data\dsh'
+    if (Test-Path $appDataHome) { $dshHome = $appDataHome }
+}
+if (-not $dshHome) {
+    throw "无法定位 DSH home：请设置 DSH_HOME 环境变量，或确认已安装 DeepSeek Harness"
+}
+$profileDir = Join-Path $dshHome 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 $pluginDst = Join-Path $nodeModules $pluginName
 $patchFile = Join-Path $profileDir 'cordis.patch.yml'
@@ -53,13 +69,23 @@ if ($content.Contains($pluginName)) {
     Copy-Item $patchFile "$patchFile.bak" -Force
     Write-Host "[ok] backed up cordis.patch.yml -> cordis.patch.yml.bak"
 
-    $entry = "- insert:`r`n    - id: $pluginName`r`n      name: '$pluginName'"
-    $trimmed = $content.Trim()
-    if ($trimmed -eq '' -or $trimmed -eq '[]') {
-        $new = $entry + "`r`n"
-    } else {
-        $new = $content.TrimEnd() + "`r`n`r`n" + $entry + "`r`n"
+    # Keep the comment header and any existing patch entries, but drop the bare
+    # `[]` placeholder: `[]` followed by real entries is invalid YAML and would
+    # break the whole patch layer.
+    $commentLines = @()
+    $bodyLines = @()
+    foreach ($line in [System.IO.File]::ReadAllLines($patchFile)) {
+        $trimmed = $line.Trim()
+        if ($trimmed.StartsWith('#')) { $commentLines += $line }
+        elseif ($trimmed -ne '' -and $trimmed -ne '[]') { $bodyLines += $line }
     }
+
+    $entry = "- insert:`r`n    - id: $pluginName`r`n      name: '$pluginName'"
+    $parts = @()
+    if ($commentLines.Count -gt 0) { $parts += ($commentLines -join "`r`n") }
+    if ($bodyLines.Count -gt 0) { $parts += ($bodyLines -join "`r`n") }
+    $parts += $entry
+    $new = ($parts -join "`r`n`r`n") + "`r`n"
     [System.IO.File]::WriteAllText($patchFile, $new, (New-Object System.Text.UTF8Encoding($false)))
     Write-Host "[ok] registered $pluginName in cordis.patch.yml"
 }

@@ -42,7 +42,9 @@ if (config.spritesheetPath) {
   }
 }
 if (!sheetPath) {
-  const imgs = fs.readdirSync(root).filter((f) => /\.(webp|png|gif)$/i.test(f));
+  // Ignore the repository's own banner.png (README header image) — it is not a
+  // pet spritesheet. Any other extra images still require config.spritesheetPath.
+  const imgs = fs.readdirSync(root).filter((f) => /\.(webp|png|gif)$/i.test(f) && f.toLowerCase() !== 'banner.png');
   if (imgs.length === 1) {
     sheetPath = path.join(root, imgs[0]);
   } else if (imgs.length === 0) {

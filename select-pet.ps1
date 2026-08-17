@@ -10,7 +10,23 @@ param([switch]$List)
 
 $ErrorActionPreference = 'Stop'
 
-$profileDir = Join-Path $env:USERPROFILE '.dsh\profiles\web'
+# Locate the DSH home: $env:DSH_HOME wins, then the conventional ~/.dsh,
+# then the DeepSeek Harness desktop app's fixed data dir. (The desktop app
+# only exports DSH_HOME to its own child processes, so user terminals fall
+# through to the app-data path.)
+$dshHome = $null
+if ($env:DSH_HOME) {
+    $dshHome = $env:DSH_HOME
+} elseif (Test-Path (Join-Path $env:USERPROFILE '.dsh')) {
+    $dshHome = Join-Path $env:USERPROFILE '.dsh'
+} else {
+    $appDataHome = Join-Path $env:APPDATA 'io.github.hairyf.deepseek-harness-desktop\data\dsh'
+    if (Test-Path $appDataHome) { $dshHome = $appDataHome }
+}
+if (-not $dshHome) {
+    throw "无法定位 DSH home：请设置 DSH_HOME 环境变量，或确认已安装 DeepSeek Harness"
+}
+$profileDir = Join-Path $dshHome 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 $patchFile = Join-Path $profileDir 'cordis.patch.yml'
 
