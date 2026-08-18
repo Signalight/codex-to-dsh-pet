@@ -7,6 +7,10 @@ spritesheet.webp
 # 仓库自身资源（banner 等）例外
 !banner.png
 
+# 商店展示截图（随仓库分发）
+!assets/screenshots/
+!assets/screenshots/*.png
+
 # 运行时插件内置的示例桌宠素材（随插件分发，例外）
 !packages/dsh-codex-pet/assets/**/*.webp
 !packages/dsh-codex-pet/assets/**/*.png
