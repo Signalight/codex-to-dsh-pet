@@ -605,6 +605,7 @@ window.__ModuleLoader__.load({
 					controller.element.removeEventListener("dblclick", onDoubleClick);
 					controller.dispose();
 					petRef.current = null;
+					if (bubble) bubble.remove();
 					bubbleRef.current = null;
 				};
 			}, [configKey]);
