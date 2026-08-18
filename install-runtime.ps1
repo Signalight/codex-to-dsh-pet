@@ -70,9 +70,10 @@ if ($content.Contains("id: $pluginId") -and $content.Contains("name: '$pluginNam
 }
 
 Write-Host ""
-Write-Host "Done. Restart the DSH web surface to load the runtime plugin:"
-Write-Host "  stop the current 'dsh web' process, then run:  dsh web"
-Write-Host "Then hard-refresh http://127.0.0.1:3080 (Ctrl+Shift+R)."
+Write-Host "Done. The DSH profile hot-reloads cordis.patch.yml, so hard-refresh the"
+Write-Host "browser (Ctrl+Shift+R) to load the runtime plugin. If it still doesn't show,"
+Write-Host "fully quit and relaunch the DSH web surface. (Command-line 'dsh web' users"
+Write-Host "can restart the process instead.)"
 Write-Host ""
 Write-Host "Add pets: drop <pet>/pet.json + <pet>/spritesheet.webp into"
 Write-Host "  ~/.dsh/pets/  (or the plugin's assets/ directory)."

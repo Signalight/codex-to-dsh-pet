@@ -1,6 +1,12 @@
-﻿# select-pet.ps1
-# List installed desktop-pet plugins and toggle which ones are active
-# (i.e. which `- insert:` entries exist in cordis.patch.yml).
+# select-pet.ps1
+# List installed desktop-pet plugins and toggle which LEGACY per-pet plugins
+# are active (i.e. which `- insert:` entries exist in cordis.patch.yml).
+#
+# Scoped runtime plugins (e.g. @signalight/dsh-codex-pet) are listed for
+# information only: they manage their own pets through the Settings → 桌宠 UI
+# and are NEVER rewritten by this script. Only the legacy per-pet rows
+# (top-level, client-only plugins produced by build.js) are toggled here, and
+# every other patch entry is preserved untouched.
 #
 # Usage:
 #   .\select-pet.ps1          interactive menu (type a number to toggle, 'q' to save & quit)
@@ -17,43 +23,84 @@ $profileDir = Join-Path (Get-DshHome) 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 $patchFile = Join-Path $profileDir 'cordis.patch.yml'
 
-# 1) Find pet plugins: directories under node_modules whose package.json declares dsh.client.
-$pets = @()
-Get-ChildItem $nodeModules -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-    $pkg = Join-Path $_.FullName 'package.json'
-    if (Test-Path $pkg) {
-        try {
-            $j = ([System.IO.File]::ReadAllText($pkg)) | ConvertFrom-Json
-            if ($j.dsh -and $j.dsh.client) { $pets += $_.Name }
-        } catch {}
+# Read one package.json (returns $null when absent/unparseable).
+function Read-Pkg([string]$dir) {
+    $pkg = Join-Path $dir 'package.json'
+    if (-not (Test-Path $pkg)) { return $null }
+    try {
+        $text = [System.IO.File]::ReadAllText($pkg)
+        return ($text | ConvertFrom-Json)
+    } catch {
+        return $null
     }
 }
-$pets = @($pets | Sort-Object)
 
-if ($pets.Count -eq 0) {
-    Write-Host "No desktop-pet plugins found under $nodeModules"
-    exit 0
+# 1) Discover plugins.
+#    - legacy per-pet plugins = top-level node_modules dirs whose package.json
+#      declares dsh.client and no dsh.bundle (build.js output) -> toggleable.
+#    - runtime plugins = everything else declaring dsh.client or dsh.bundle
+#      (scoped dirs like @scope/name, or top-level with dsh.bundle) -> listed
+#      for information only, never rewritten here.
+$pets = @()    # legacy per-pet plugins (toggleable)
+$runtime = @() # runtime plugins (display-only)
+
+# Top-level dirs.
+Get-ChildItem $nodeModules -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $j = Read-Pkg $_.FullName
+    if ($j -and $j.dsh -and ($j.dsh.client -or $j.dsh.bundle)) {
+        if ($j.dsh.client -and -not $j.dsh.bundle) { $pets += $_.Name }
+        else { $runtime += $_.Name }
+    }
 }
 
-# 2) Determine active state from cordis.patch.yml.
+# Scoped dirs: @scope/<pkg> (one level deeper).
+Get-ChildItem $nodeModules -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like '@*' } |
+    ForEach-Object {
+        $scope = $_.Name
+        Get-ChildItem $_.FullName -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $j = Read-Pkg $_.FullName
+            if ($j -and $j.dsh -and ($j.dsh.client -or $j.dsh.bundle)) {
+                $runtime += ($scope + '/' + $_.Name)
+            }
+        }
+    }
+
+$pets = @($pets | Sort-Object)
+$runtime = @($runtime | Sort-Object)
+
+# 2) Determine active state from cordis.patch.yml (legacy pets only).
 $content = [System.IO.File]::ReadAllText($patchFile)
 $active = @{}
 foreach ($p in $pets) { $active[$p] = $content.Contains("name: '$p'") }
 
 function Show-Pets {
     Write-Host ""
-    Write-Host "Installed pets ([x] = active):"
+    Write-Host "Legacy per-pet plugins ([x] = active):"
+    if ($pets.Count -eq 0) { Write-Host "  (none)" }
     for ($i = 0; $i -lt $pets.Count; $i++) {
         $mark = if ($active[$pets[$i]]) { '[x]' } else { '[ ]' }
         Write-Host ("  {0}. {1} {2}" -f ($i + 1), $mark, $pets[$i])
+    }
+    if ($runtime.Count -gt 0) {
+        Write-Host ""
+        Write-Host "Runtime plugins (managed elsewhere, not toggled here):"
+        foreach ($r in $runtime) { Write-Host ("   - {0}" -f $r) }
     }
 }
 
 Show-Pets
 if ($List) { exit 0 }
 
+if ($pets.Count -eq 0) {
+    Write-Host ""
+    Write-Host "No legacy per-pet plugins to toggle. Runtime plugins are managed via"
+    Write-Host "Settings -> 桌宠 (or their own settings surface)."
+    exit 0
+}
+
 Write-Host ""
-Write-Host "Type a number to toggle it, or 'q' to save and quit."
+Write-Host "Type a number to toggle a legacy pet, or 'q' to save and quit."
 
 while ($true) {
     $choice = Read-Host "> "
@@ -69,10 +116,10 @@ while ($true) {
 }
 
 # 3) Rewrite cordis.patch.yml:
-#    - keep comments and any NON-pet patch content in place (same behaviour as
-#      install-to-dsh.ps1, so unrelated patch entries are never wiped)
+#    - keep comments and every non-pet patch block in place (runtime plugins and
+#      any other third-party entries are never wiped)
 #    - drop the bare `[]` placeholder (invalid YAML next to real entries)
-#    - regenerate the pet insert entries from the active set
+#    - regenerate ONLY the legacy per-pet insert entries from the active set
 Copy-Item $patchFile "$patchFile.bak" -Force
 
 $kept = @()
@@ -90,7 +137,7 @@ while ($i -lt $lines.Count) {
             $block += $lines[$j]
             $j++
         }
-        # Pet entries are regenerated below, so drop them; keep everything else.
+        # Legacy pet blocks are regenerated below; keep everything else untouched.
         $blockText = $block -join "`n"
         $isPetBlock = $false
         foreach ($p in $pets) {
@@ -118,4 +165,6 @@ $new = ($parts -join "`r`n`r`n") + "`r`n"
 [System.IO.File]::WriteAllText($patchFile, $new, (New-Object System.Text.UTF8Encoding($false)))
 
 Write-Host ""
-Write-Host "Saved. Restart 'dsh web' and hard-refresh the browser to apply."
+Write-Host "Saved. The DSH profile hot-reloads cordis.patch.yml, so hard-refresh the"
+Write-Host "browser (Ctrl+Shift+R) to apply. Command-line 'dsh web' users may also"
+Write-Host "restart the process."

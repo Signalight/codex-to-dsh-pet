@@ -46,9 +46,9 @@ dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/d
 This copies the package into `~/.dsh/profiles/node_modules/@signalight/dsh-codex-pet` and
 registers the plugin row in `~/.dsh/profiles/web/cordis.patch.yml`. Then:
 
-1. Stop the running `dsh web` process.
-2. Run `dsh web` again.
-3. Hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R).
+1. Hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R) — the DSH profile hot-reloads
+   `cordis.patch.yml`. If the pet still doesn't show, fully quit and relaunch the DSH
+   desktop app (command-line users can restart `dsh web`).
 
 Rollback: delete `~/.dsh/profiles/node_modules/@signalight/dsh-codex-pet` and restore the
 `.bak` next to the patch file.

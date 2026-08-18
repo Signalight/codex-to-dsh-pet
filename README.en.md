@@ -42,7 +42,7 @@ dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/d
 .\install-runtime.ps1
 ```
 
-Afterwards: restart `dsh web`, then hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R).
+Afterwards: DSH hot-reloads `cordis.patch.yml`, so just hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R). If it still doesn't show, fully quit and relaunch the DSH desktop app (command-line users can restart `dsh web` instead).
 
 **Adding pets afterwards (all in the GUI):** open **Settings → 桌宠**, click **导入桌宠**,
 pick a `.webp` atlas (you can enter a display name; the pet id comes from the filename, and
@@ -93,9 +93,9 @@ node build.js
 
 When you see `Done.` it worked.
 
-**Step 5: Restart and refresh**
+**Step 5: Refresh to apply**
 
-Restart `dsh web`, then **hard-refresh** `http://127.0.0.1:3080` in your browser (`Ctrl+Shift+R`). Your pet appears in the bottom-right corner 🎉
+DSH hot-reloads `cordis.patch.yml`, so just **hard-refresh** `http://127.0.0.1:3080` in your browser (`Ctrl+Shift+R`). Your pet appears in the bottom-right corner 🎉 (no restart needed for the desktop app; if it still doesn't show, fully quit and relaunch the app — command-line users can restart `dsh web`.)
 
 > **Common errors**:
 > - "Running scripts is disabled..." → first run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` (press `Y`), then redo Step 4.
@@ -177,24 +177,24 @@ The script locates your DSH home automatically, copies the plugin to `<DSH home>
 > Note: the desktop app does **not** export `DSH_HOME` to your terminal — the scripts find it via the probe above.
 > The detection logic lives in `dsh-home.ps1` (shared by the install/select scripts); edit that file to customize.
 
-### 5. Restart and refresh
+### 5. Refresh to apply
+
+DSH hot-reloads `cordis.patch.yml`, so just hard-refresh `http://127.0.0.1:3080` in your browser (`Ctrl+Shift+R`) — the pet appears in the bottom-right corner. No restart is needed for the desktop app (which you can't and shouldn't stop manually); if it still doesn't show, fully quit and relaunch it. Command-line users can restart `dsh web`:
 
 ```powershell
 dsh web
 ```
 
-Then hard-refresh `http://127.0.0.1:3080` in your browser (`Ctrl+Shift+R`) — the pet appears in the bottom-right corner.
+### 6. Choose which pets are active (legacy per-pet plugins only)
 
-### 6. Choose which pets are active
-
-After installing multiple pets, use `select-pet.ps1` to toggle which ones are active:
+`select-pet.ps1` only manages **legacy per-pet plugins** (built by `build.js`, top-level under `node_modules`, `dsh.client` only):
 
 ```powershell
 .\select-pet.ps1          # interactive menu: type a number to toggle, q to save & quit
 .\select-pet.ps1 -List    # just show the current state, no changes
 ```
 
-It scans node_modules for all pet plugins (`dsh.client` packages), shows their active state, and writes your choices back to `cordis.patch.yml` (auto-backup). Restart `dsh web` + hard-refresh to apply.
+It scans `node_modules` (including `@scope/` subdirectories) for pet plugins: legacy per-pet plugins can be toggled, while scoped runtime plugins (e.g. `@signalight/dsh-codex-pet`) are listed for information only and are **never modified** (manage their pets via Settings → 桌宠). Saving rewrites only the legacy per-pet `- insert:` rows and preserves every other patch entry (auto-backup). Hard-refresh the browser afterwards to apply.
 
 ## Atlas format
 
@@ -251,11 +251,12 @@ $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 
 Remove-Item -Recurse -Force (Join-Path $nodeModules '<name>')
 Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -Force
-# then restart dsh web
+# then hard-refresh the browser (desktop app hot-reloads; CLI users restart dsh web)
 ```
 
 ## Changelog
 
+- **2026-08-18** Fix (issue #3): `select-pet.ps1` now also scans scoped (`@scope/`) directories, so the runtime plugin is visible but only listed, never modified; toggling legacy per-pet plugins rewrites only their own patch rows and preserves every other entry (no more silently deleting the runtime plugin or other third-party entries); `install-to-dsh.ps1` / `install-runtime.ps1` and the README restart guidance now say "hot-reload + hard-refresh" — the desktop app can't and shouldn't be restarted by hand.
 - **2026-08-17** Fix (0.1.2): importing a new pet no longer overwrites the previous one. Pet ids used to be derived from the filename, and Codex atlases are all named `spritesheet.webp`, so every import clobbered the same folder; id collisions now get a `-2` / `-3` suffix automatically, and only a deliberate re-import with the same id + same typed name updates that pet in place (for replacing an atlas with a fixed version).
 - **2026-08-17** Added the `packages/dsh-codex-pet` runtime plugin (install once; GUI import of pets, pet switching / size / position / bubble color & opacity); the example pet is now the original character **nastya (娜斯佳)**, licensed CC BY-NC 4.0 (see LEGAL.md).
 - **2026-08-17** Added an English README (`README.en.md`) with a language switcher at the top; added a repository description on GitHub.

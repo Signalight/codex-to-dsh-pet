@@ -1,4 +1,4 @@
-﻿# install-to-dsh.ps1
+# install-to-dsh.ps1
 # Install the built codex-to-dsh-pet plugin into the DSH "web" profile.
 # Prerequisite: run `node build.js` first (produces lib/client.js + config.effective.json).
 # Plugin name comes from config.effective.json `name` (derived from the spritesheet
@@ -78,8 +78,9 @@ if ($content.Contains($pluginName)) {
 }
 
 Write-Host ""
-Write-Host "Done. Restart the DSH web surface to load the pet:"
-Write-Host "  stop the current 'dsh web' process, then run:  dsh web"
-Write-Host "Then hard-refresh http://127.0.0.1:3080 (Ctrl+Shift+R)."
+Write-Host "Done. The DSH profile hot-reloads cordis.patch.yml, so hard-refresh the"
+Write-Host "browser (Ctrl+Shift+R) to see the pet. If it still doesn't show, fully quit"
+Write-Host "and relaunch the DSH web surface. (Command-line 'dsh web' users can restart"
+Write-Host "the process instead.)"
 Write-Host ""
 Write-Host "Rollback: delete $pluginDst and restore $patchFile.bak"

@@ -40,7 +40,7 @@ dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/d
 .\install-runtime.ps1
 ```
 
-装完后：重启 `dsh web`，浏览器硬刷新 `http://127.0.0.1:3080`（Ctrl+Shift+R）。
+装完后：DSH 会热加载 `cordis.patch.yml`，直接浏览器硬刷新 `http://127.0.0.1:3080`（Ctrl+Shift+R）即可；若仍未出现，再完全退出并重启 DSH 桌面应用（命令行版则重启 `dsh web`）。
 
 **之后加桌宠（全图形界面）：** 打开 **设置 → 桌宠**，点 **导入桌宠**，选一张 `.webp`
 图集即可（可输入中文名，宠物 id 自动取自文件名；id 重复时自动加 `-2`/`-3` 后缀，
@@ -91,9 +91,9 @@ node build.js
 
 看到 `Done.` 就成功了。
 
-**第 5 步：重启并刷新**
+**第 5 步：刷新生效**
 
-重启 `dsh web`，然后在浏览器**硬刷新** `http://127.0.0.1:3080`（`Ctrl+Shift+R`），桌宠就出现在右下角了 🎉
+DSH 会热加载 `cordis.patch.yml`，直接在浏览器**硬刷新** `http://127.0.0.1:3080`（`Ctrl+Shift+R`），桌宠就出现在右下角了 🎉（桌面应用无需重启；若仍未出现，完全退出并重启桌面应用；命令行版则重启 `dsh web`。）
 
 > **常见报错**：
 > - 出现「禁止运行脚本」→ 先输入 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 回车（选 `Y`），再重跑第 4 步。
@@ -181,25 +181,28 @@ node verify-bundle.cjs
 > 注意：桌面应用**不会**把 `DSH_HOME` 导出到你的终端，脚本靠上面的探测自动找到。
 > 探测逻辑统一放在 `dsh-home.ps1`（install / select 脚本共用），想自定义改它即可。
 
-### 5. 重启并刷新
+### 5. 刷新生效
+
+DSH 会热加载 `cordis.patch.yml`，直接在浏览器硬刷新 `http://127.0.0.1:3080`（`Ctrl+Shift+R`）即可，桌宠就出现在右下角了。桌面应用无需重启；若仍未出现，完全退出并重启桌面应用。命令行版用户可重启 `dsh web`：
 
 ```powershell
 dsh web
 ```
 
-然后在浏览器硬刷新 `http://127.0.0.1:3080`（`Ctrl+Shift+R`），桌宠就出现在右下角了。
+### 6. 选择激活哪个桌宠（仅旧式每宠插件）
 
-### 6. 选择激活哪个桌宠
-
-安装了多个桌宠后，用 `select-pet.ps1` 切换激活状态：
+`select-pet.ps1` 只管理**旧式每宠插件**（`build.js` 构建、位于 `node_modules` 顶层、
+只有 `dsh.client` 的插件）：
 
 ```powershell
 .\select-pet.ps1          # 交互菜单：输入序号切换，q 保存退出
 .\select-pet.ps1 -List    # 只查看当前状态，不修改
 ```
 
-它会扫描 node_modules 里所有桌宠插件（`dsh.client` 包），列出激活状态，并把你的
-选择写回 `cordis.patch.yml`（自动备份）。改完重启 `dsh web` + 硬刷新即可生效。
+它会扫描 `node_modules`（含 `@scope/` 子目录）里所有桌宠插件：旧式每宠插件可切换
+激活状态；scoped 运行时插件（如 `@signalight/dsh-codex-pet`）仅作为信息列出、**不会
+被本脚本改动**（其桌宠请在「设置 → 桌宠」里管理）。保存时只重写旧式每宠插件的
+`- insert:` 行，其余补丁条目一律保留（自动备份）。改完浏览器硬刷新即可生效。
 
 ## 图集格式
 
@@ -258,11 +261,12 @@ $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 
 Remove-Item -Recurse -Force (Join-Path $nodeModules '<name>')
 Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -Force
-# 然后重启 dsh web
+# 改完浏览器硬刷新即可（桌面应用会热加载；命令行版再重启 dsh web）
 ```
 
 ## 更新日志
 
+- **2026-08-18** 修复（issue #3）：`select-pet.ps1` 现在也会扫描 scoped（`@scope/`）目录，运行时插件可见但仅展示、绝不改动；旧式每宠插件切换只重写自己的补丁行，其余条目一律保留（避免静默删除运行时插件等第三方条目）；`install-to-dsh.ps1` / `install-runtime.ps1` 与 README 的重启指引改为「热加载 + 硬刷新」，桌面应用无需也无法手动重启 `dsh web`。
 - **2026-08-17** 修复（0.1.2）：导入新桌宠不再覆盖旧桌宠。此前桌宠 id 取自文件名，而 Codex 图集都叫 `spritesheet.webp`，导致第二次导入会覆盖第一次导入的文件夹；现在 id 冲突时自动追加 `-2`、`-3` 后缀，只有「同名同 id」的重复导入才原地更新（用于替换修复后的图集）。
 - **2026-08-17** 新增运行时插件 `packages/dsh-codex-pet`：装一次即可，图形界面导入桌宠（webp/png/gif）、换宠 / 大小 / 位置 / 气泡颜色与透明度；示例桌宠改用原创角色 **nastya（娜斯佳）**，按 **CC BY-NC 4.0** 授权（详见 LEGAL.md）。
 - **2026-08-17** 新增：英文版说明（`README.en.md`），README 顶部增加中/英切换链接；并给 GitHub 仓库添加了简介（description）与标签（topics，含 `dsh-plugin`）。
