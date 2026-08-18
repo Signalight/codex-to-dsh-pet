@@ -26,3 +26,6 @@ config.effective.json
 # 系统 / 编辑器
 .DS_Store
 Thumbs.db
+
+# 本地素材暂存（不入库）
+picture/
