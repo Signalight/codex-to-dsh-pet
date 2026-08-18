@@ -45,7 +45,8 @@ dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/d
 Afterwards: restart `dsh web`, then hard-refresh `http://127.0.0.1:3080` (Ctrl+Shift+R).
 
 **Adding pets afterwards (all in the GUI):** open **Settings → 桌宠**, click **导入桌宠**,
-pick a `.webp` atlas (you can enter a display name; the pet id comes from the filename).
+pick a `.webp` atlas (you can enter a display name; the pet id comes from the filename, and
+id collisions get a `-2` / `-3` suffix so a new import never overwrites an earlier pet).
 See [packages/dsh-codex-pet/README.md](./packages/dsh-codex-pet/README.md).
 
 > 📢 **For existing users**: pets installed with the legacy method below **keep working**.
@@ -255,6 +256,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## Changelog
 
+- **2026-08-17** Fix (0.1.2): importing a new pet no longer overwrites the previous one. Pet ids used to be derived from the filename, and Codex atlases are all named `spritesheet.webp`, so every import clobbered the same folder; id collisions now get a `-2` / `-3` suffix automatically, and only a deliberate re-import with the same id + same typed name updates that pet in place (for replacing an atlas with a fixed version).
 - **2026-08-17** Added the `packages/dsh-codex-pet` runtime plugin (install once; GUI import of pets, pet switching / size / position / bubble color & opacity); the example pet is now the original character **nastya (娜斯佳)**, licensed CC BY-NC 4.0 (see LEGAL.md).
 - **2026-08-17** Added an English README (`README.en.md`) with a language switcher at the top; added a repository description on GitHub.
 - **2026-08-17** Docs: example pet no longer uses the game character name `anaxa`; it now uses the original character `nastya`.

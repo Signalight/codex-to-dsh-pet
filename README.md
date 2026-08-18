@@ -43,7 +43,8 @@ dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/d
 装完后：重启 `dsh web`，浏览器硬刷新 `http://127.0.0.1:3080`（Ctrl+Shift+R）。
 
 **之后加桌宠（全图形界面）：** 打开 **设置 → 桌宠**，点 **导入桌宠**，选一张 `.webp`
-图集即可（可输入中文名，宠物 id 自动取自文件名）。详见
+图集即可（可输入中文名，宠物 id 自动取自文件名；id 重复时自动加 `-2`/`-3` 后缀，
+不会覆盖之前导入的桌宠）。详见
 [packages/dsh-codex-pet/README.md](./packages/dsh-codex-pet/README.md)。
 
 > 📢 **给早期用户**：如果你之前用下面「旧方法」给每只桌宠单独装过插件，它们**仍然
@@ -262,6 +263,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 更新日志
 
+- **2026-08-17** 修复（0.1.2）：导入新桌宠不再覆盖旧桌宠。此前桌宠 id 取自文件名，而 Codex 图集都叫 `spritesheet.webp`，导致第二次导入会覆盖第一次导入的文件夹；现在 id 冲突时自动追加 `-2`、`-3` 后缀，只有「同名同 id」的重复导入才原地更新（用于替换修复后的图集）。
 - **2026-08-17** 新增运行时插件 `packages/dsh-codex-pet`：装一次即可，图形界面导入桌宠（webp/png/gif）、换宠 / 大小 / 位置 / 气泡颜色与透明度；示例桌宠改用原创角色 **nastya（娜斯佳）**，按 **CC BY-NC 4.0** 授权（详见 LEGAL.md）。
 - **2026-08-17** 新增：英文版说明（`README.en.md`），README 顶部增加中/英切换链接；并给 GitHub 仓库添加了简介（description）与标签（topics，含 `dsh-plugin`）。
 - **2026-08-17** 文档：示例宠物名不再使用游戏角色名 `anaxa`，改用原创角色 `nastya`。

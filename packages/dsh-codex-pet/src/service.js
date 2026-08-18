@@ -98,20 +98,39 @@ export class PetService {
    * Import one uploaded Codex atlas: derive a filesystem-safe kebab id (from
    * the raw id or a generated fallback), keep the display name as-is (Chinese
    * allowed), save the spritesheet + pet.json, register and select it.
+   *
+   * The id never silently reuses an existing one: re-importing the same pet
+   * (same id AND an explicitly typed display name) updates that pet in place,
+   * while any other collision gets a unique '-2' / '-3' suffix. Codex atlases
+   * all ship as 'spritesheet.webp', so without this every import would
+   * overwrite the previous one's folder.
    */
   importPet(rawId, displayName, buffer) {
-    const id = String(rawId || '')
+    const base = String(rawId || '')
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9-]+/g, '-')
       .replace(/^-+|-+$/g, '') || ('pet-' + Date.now().toString(36))
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) throw new Error('invalid-id')
-    const name = String(displayName || '').trim().slice(0, 80) || id
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(base)) throw new Error('invalid-id')
+    const typedName = String(displayName || '').trim().slice(0, 80)
+    const name = typedName || base
     if (!buffer || buffer.length === 0) throw new Error('empty-file')
     const ext = detectImageExt(buffer)
     if (ext === null) throw new Error('unsupported-image (use .webp/.png/.gif)')
     const version = detectSpriteVersion(buffer)
     if (version === null) throw new Error('not-a-codex-atlas (expected 1536x1872 v1 or 1536x2288 v2)')
+
+    // Update-in-place only when the user re-imports the same pet on purpose
+    // (same id and the same explicitly typed name); any other collision gets a
+    // fresh suffixed id so previously imported pets are never overwritten.
+    const existing = this.registry.byId(base)
+    const isUpdate = existing !== undefined && typedName !== '' && existing.displayName === typedName
+    let id = base
+    let n = 2
+    while (!isUpdate && (this.registry.byId(id) || existsSync(join(this.petsDir, id)))) {
+      id = base + '-' + n
+      n += 1
+    }
 
     const dir = join(this.petsDir, id)
     mkdirSync(dir, { recursive: true })

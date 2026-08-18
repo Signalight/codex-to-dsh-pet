@@ -82,7 +82,11 @@ auto-detected from the image dimensions when omitted; `size` (px width) and
 **No manual editing needed**: in the DSH settings surface open the «桌宠»
 section and click **导入桌宠 (webp / png / gif)** — the plugin writes the file
 into `~/.dsh/pets/<name>/`, auto-detects the atlas version, and selects the new
-pet. The pet id comes from the filename (`my-pet.webp` → `my-pet`).
+pet. The pet id comes from the filename (`my-pet.webp` → `my-pet`); if that id
+is already taken the plugin appends a `-2` / `-3` suffix instead of
+overwriting the earlier pet (all Codex atlases are named `spritesheet.webp`,
+so without this every import would clobber the previous one). Re-importing the
+same id with the same typed display name updates that pet in place.
 
 ## Architecture
 
@@ -110,7 +114,7 @@ src/
 | `/api/codex-pet/set-pet` | POST | `{ petId }` — switch pet |
 | `/api/codex-pet/set-config` | POST | `{ size?, pin?, left?, top?, visible? }` |
 | `/api/codex-pet/set-visible` | POST | `{ visible }` |
-| `/api/codex-pet/import?name=<id>` | POST | raw image body — import a Codex atlas |
+| `/api/codex-pet/import?id=<filename>&name=<displayName>` | POST | raw image body — import a Codex atlas |
 | `/codex-pet/<id>/<file>` | GET | pet.json + spritesheet assets |
 
 ## Roadmap
