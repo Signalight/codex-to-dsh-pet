@@ -1,6 +1,6 @@
 {
   "name": "@signalight/dsh-codex-pet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DSH web-GUI pet runtime: renders Codex spritesheet-atlas pets (v1/v2) with drag/wave/jump, live activity poses and progress bubbles. 把 Codex 桌宠图集渲染为 DSH 网页桌宠的运行时插件。",
   "type": "module",
   "main": "src/index.js",

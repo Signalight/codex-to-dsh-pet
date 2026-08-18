@@ -7,7 +7,7 @@
  * never leaks top-level const into the page. */
 (function () {
 window.__ModuleLoader__.load({
-	id: "dsh-codex-pet",
+	id: "@signalight/dsh-codex-pet",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;
