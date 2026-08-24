@@ -8,7 +8,7 @@ A generic framework / adapter that ports **Codex desktop pets** (spritesheet atl
 This project is written with DSH — if you find any bugs or errors, please let us know; we keep iterating.
 
 - Zero-dependency core renderer (pure DOM, no build step)
-- Ready-to-use interactions: drag (runs in the direction of movement), hover to wave, double-click to jump, eyes follow the mouse (note: only Codex pet **v2** atlases — 11 rows — support eye tracking)
+- Ready-to-use interactions: drag (runs in the direction of movement), hover to wave, double-click to jump, eyes follow the mouse (note: only Codex pet **v2** atlases — 11 rows — support eye tracking; the runtime plugin can turn this off in settings)
 - Reacts to the agent's live activity state and switches poses
 - **Progress bubble** above the pet while working (tool name / streaming text / "thinking…")
 - Per-row **size normalization** to fix inconsistent pose sizes in some atlases
@@ -21,7 +21,8 @@ This project is written with DSH — if you find any bugs or errors, please let 
 
 `packages/dsh-codex-pet` is a **runtime plugin** — install it once, then import `.webp`
 atlases from a button in the DSH settings surface, with **no command line**. It supports
-pet switching, size, position, bubble color/opacity, and ships one example pet `nastya`
+pet switching, size, position, bubble color/opacity, and mouse-tracking (v2 only, on by
+default, toggleable), and ships one example pet `nastya`
 (娜斯佳, an original character, CC BY-NC).
 
 **Install (once only, pick one):**
@@ -256,6 +257,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## Changelog
 
+- **2026-08-24** The runtime plugin gains a "mouse tracking" toggle (Settings → 桌宠): whether a v2 atlas's eyes follow the pointer, **on by default**, chooseable in the GUI; the UI notes that this only applies to **v2** atlases (v1 has no look cells, so the setting is inert). Persisted as the service-side `mouseTracking` display config.
 - **2026-08-18** Fix (issue #3): `select-pet.ps1` now also scans scoped (`@scope/`) directories, so the runtime plugin is visible but only listed, never modified; toggling legacy per-pet plugins rewrites only their own patch rows and preserves every other entry (no more silently deleting the runtime plugin or other third-party entries); `install-to-dsh.ps1` / `install-runtime.ps1` and the README restart guidance now say "hot-reload + hard-refresh" — the desktop app can't and shouldn't be restarted by hand.
 - **2026-08-17** Fix (0.1.2): importing a new pet no longer overwrites the previous one. Pet ids used to be derived from the filename, and Codex atlases are all named `spritesheet.webp`, so every import clobbered the same folder; id collisions now get a `-2` / `-3` suffix automatically, and only a deliberate re-import with the same id + same typed name updates that pet in place (for replacing an atlas with a fixed version).
 - **2026-08-17** Added the `packages/dsh-codex-pet` runtime plugin (install once; GUI import of pets, pet switching / size / position / bubble color & opacity); the example pet is now the original character **nastya (娜斯佳)**, licensed CC BY-NC 4.0 (see LEGAL.md).

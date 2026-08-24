@@ -469,6 +469,9 @@ window.__ModuleLoader__.load({
 			const bubbleRef = react.useRef(null);
 			const activityRef = react.useRef("idle");
 			const bubbleWidthRef = react.useRef(120);
+			// Live eye-tracking switch (read by the pointermove handler below, so
+			// toggling it never rebuilds the pet). Applies to v2 atlases only.
+			const mouseTrackRef = react.useRef(true);
 			const [state, setState] = react.useState(null);
 
 			const snap = useConversationSnapshot(sessions);
@@ -563,6 +566,7 @@ window.__ModuleLoader__.load({
 
 				const look = (e) => {
 					if (pet.spriteVersionNumber === 1) return; // v1 atlases have no look cells
+					if (!mouseTrackRef.current) return; // eye-tracking turned off in settings
 					if (activityRef.current !== "idle") return;
 					if (e.target === controller.element) return;
 					const r = controller.element.getBoundingClientRect();
@@ -613,6 +617,7 @@ window.__ModuleLoader__.load({
 			// Update the bubble theme in place when the setting changes (no pet re-create).
 			const bubbleThemeNow = displayNow ? (displayNow.bubbleTheme ?? "gray") : "gray";
 			const bubbleOpacityNow = displayNow ? (displayNow.bubbleOpacity ?? 94) : 94;
+			react.useEffect(() => { mouseTrackRef.current = !displayNow || displayNow.mouseTracking !== false; }, [displayNow]);
 			react.useEffect(() => {
 				const b = bubbleRef.current;
 				if (!b) return;
@@ -779,6 +784,9 @@ window.__ModuleLoader__.load({
 			}
 			const v = state.display;
 			const pets = state.pets || [];
+			// Eye-tracking applies to v2 atlases (the 16 "look" cells) only; v1
+			// atlases have no look cells, so the setting is inert for them.
+			const selectedPetIsV2 = !!(state.pet && state.pet.spriteVersionNumber === 2);
 			const post = (path, body) => {
 				fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
 					.then(() => load())
@@ -802,6 +810,11 @@ window.__ModuleLoader__.load({
 					onCommit: (n) => post("/api/codex-pet/set-config", { size: n }),
 				})),
 				checkboxField("显示 Visible", !!v.visible, (e) => post("/api/codex-pet/set-visible", { visible: e.target.checked })),
+				checkboxField("鼠标视觉追踪 Eye tracking（仅 v2 图集）", v.mouseTracking !== false, (e) => post("/api/codex-pet/set-config", { mouseTracking: e.target.checked })),
+				react.createElement("div", { style: { color: selectedPetIsV2 ? "#9aa0a6" : "#e5a13b", fontSize: "12px", marginTop: "-6px" } },
+					selectedPetIsV2
+						? "仅 v2 图集支持鼠标追踪：开启后，宠物视线会跟随鼠标。"
+						: "仅 v2 图集支持鼠标追踪，当前所选宠物不是 v2 图集，此设置不会生效。"),
 				field("气泡颜色 Bubble color", react.createElement("select", {
 					value: v.bubbleTheme ?? "gray",
 					style: { padding: "6px 8px" },

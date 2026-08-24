@@ -20,6 +20,9 @@ plugin **once**, then add pets as plain data files — no per-pet code.
   - **v2** (1536×2288, 11 rows) — adds 16 mouse-tracking "look" cells.
 - Draggable (position persists across restarts), wave-on-hover,
   jump-on-double-click.
+- **Opt-in mouse tracking (v2 only, default on)**: the «桌宠» settings section
+  has an **Eye tracking** toggle; the UI notes it applies to v2 atlases only
+  (v1 has no look cells, so the toggle is inert for v1 pets).
 - Live activity poses: idle / waiting / running / review, driven by the
   conversation state.
 - Progress bubble showing the running tool name or the live model text tail.
@@ -112,7 +115,7 @@ src/
 | `/api/codex-pet/pets` | GET | pet registry (list of definitions) |
 | `/api/codex-pet/state` | GET | selected pet + display config |
 | `/api/codex-pet/set-pet` | POST | `{ petId }` — switch pet |
-| `/api/codex-pet/set-config` | POST | `{ size?, pin?, left?, top?, visible? }` |
+| `/api/codex-pet/set-config` | POST | `{ size?, pin?, left?, top?, visible?, mouseTracking? }` |
 | `/api/codex-pet/set-visible` | POST | `{ visible }` |
 | `/api/codex-pet/import?id=<filename>&name=<displayName>` | POST | raw image body — import a Codex atlas |
 | `/codex-pet/<id>/<file>` | GET | pet.json + spritesheet assets |
@@ -120,7 +123,8 @@ src/
 ## Roadmap
 
 - [x] Settings section («桌宠» in the DSH settings surface: pet selector,
-      show/hide, size, corner pin), backed by the plugin's own API.
+      show/hide, size, corner pin, bubble color/opacity, **eye tracking** —
+      the last is v2-only and noted as such), backed by the plugin's own API.
 - [x] In-GUI import button (upload a Codex atlas → auto-detect → install →
       select).
 - [ ] In-GUI preview before import (live canvas frame preview).

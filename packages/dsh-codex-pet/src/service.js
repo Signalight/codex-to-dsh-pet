@@ -10,7 +10,18 @@ import { join } from 'node:path'
 import { detectImageExt, detectSpriteVersion, dshHome, petEntryView, resolvePetManifest, userPetsDir } from './registry.js'
 
 const PERSIST_FILE = 'codex-pet.json'
-const DEFAULT_DISPLAY = { visible: true, size: 120, pin: 'bottom-right', left: null, top: null, bubbleTheme: 'gray', bubbleOpacity: 94 }
+const DEFAULT_DISPLAY = {
+  visible: true,
+  size: 120,
+  pin: 'bottom-right',
+  left: null,
+  top: null,
+  bubbleTheme: 'gray',
+  bubbleOpacity: 94,
+  // v2 atlases only: the pet's eyes track the pointer (the 16 "look" cells).
+  // v1 atlases have no look cells, so this setting has no effect on them.
+  mouseTracking: true,
+}
 
 export function persistPath(env = process.env) {
   return join(dshHome(env), PERSIST_FILE)
@@ -81,6 +92,7 @@ export class PetService {
     if (typeof patch.left === 'number') d.left = Math.max(0, Math.round(patch.left))
     if (typeof patch.top === 'number') d.top = Math.max(0, Math.round(patch.top))
     if (typeof patch.visible === 'boolean') d.visible = patch.visible
+    if (typeof patch.mouseTracking === 'boolean') d.mouseTracking = patch.mouseTracking
     if (typeof patch.bubbleTheme === 'string') d.bubbleTheme = patch.bubbleTheme
     if (typeof patch.bubbleOpacity === 'number') d.bubbleOpacity = Math.max(0, Math.min(100, Math.round(patch.bubbleOpacity)))
     this.save()
@@ -149,13 +161,14 @@ export class PetService {
 
   /**
    * Apply a resolved settings-section value back into the persisted runtime
-   * state (visible / size / pin / petId). Changing the pin clears any dragged
-   * left/top so the new corner takes effect immediately.
+   * state (visible / mouseTracking / size / pin / petId). Changing the pin
+   * clears any dragged left/top so the new corner takes effect immediately.
    */
   applySettingsSection(section) {
     if (!section || typeof section !== 'object') return
     const d = this.persist.display
     if (typeof section.visible === 'boolean') d.visible = section.visible
+    if (typeof section.mouseTracking === 'boolean') d.mouseTracking = section.mouseTracking
     if (typeof section.size === 'number') d.size = Math.max(32, Math.min(512, Math.round(section.size)))
     if (typeof section.pin === 'string') {
       if (d.pin !== section.pin) {
