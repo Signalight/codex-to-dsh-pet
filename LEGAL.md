@@ -47,8 +47,9 @@
 `assets/sounds/done-1.wav` 至 `done-4.wav`、`assets/sounds/error.wav`、
 `assets/sounds/interrupt-1.wav` 至 `interrupt-3.wav`。
 
-- 这些当前随附的 WAV 文件由本项目作者在本地使用 Qwen3-TTS VoiceDesign 生成。
-- 作者明确将这 8 个当前随附的生成 WAV 文件按本仓库的 MIT 许可证提供。
+- 这些当前随附的 WAV 文件由贡献者 **@yabo083**（PR #4）使用 Qwen3-TTS VoiceDesign
+  生成并提交；经本项目作者（仓库所有者）审核后纳入。
+- 本项目明确将这 8 个当前随附的生成 WAV 文件按本仓库的 MIT 许可证提供。
 - Qwen3-TTS 的源码/模型仓库为 <https://github.com/QwenLM/Qwen3-TTS>，其仓库许可为
   [Apache-2.0](https://github.com/QwenLM/Qwen3-TTS/blob/main/LICENSE)。该许可适用于该
   仓库，不改变本项目的许可。
