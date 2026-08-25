@@ -30,9 +30,16 @@
     "react-dom": "^18.2.0",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6"
   },
+  "devDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/Signalight/codex-to-dsh-pet.git"
+  },
+  "scripts": {
+    "test": "node --test test/service.test.js test/client-render.test.js"
   }
 }

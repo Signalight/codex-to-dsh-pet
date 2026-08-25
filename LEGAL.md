@@ -41,6 +41,19 @@
 - 如果你使用第三方桌宠素材，请先确认其许可协议是否允许你使用、并再分发到
   DSH 社区；不同素材的许可可能各不相同，与框架代码的许可无关。
 
+### 内置场景提示音
+
+随附的运行时插件 `packages/dsh-codex-pet` 内置以下 8 个场景提示音：
+`assets/sounds/done-1.wav` 至 `done-4.wav`、`assets/sounds/error.wav`、
+`assets/sounds/interrupt-1.wav` 至 `interrupt-3.wav`。
+
+- 这些当前随附的 WAV 文件由本项目作者在本地使用 Qwen3-TTS VoiceDesign 生成。
+- 作者明确将这 8 个当前随附的生成 WAV 文件按本仓库的 MIT 许可证提供。
+- Qwen3-TTS 的源码/模型仓库为 <https://github.com/QwenLM/Qwen3-TTS>，其仓库许可为
+  [Apache-2.0](https://github.com/QwenLM/Qwen3-TTS/blob/main/LICENSE)。该许可适用于该
+  仓库，不改变本项目的许可。
+- 使用 Qwen3-TTS 不代表 Qwen 对本项目或这些音频的背书。
+
 ## 三、商标
 
 - 「Codex」「DeepSeek」分别是各自权利方的商标。本项目名称中的 `codex`、`dsh`
