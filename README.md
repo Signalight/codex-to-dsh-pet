@@ -47,6 +47,21 @@ dsh plugin --profile web add github:Signalight/codex-to-dsh-pet#path:/packages/d
 
 装完后：DSH 会热加载 `cordis.patch.yml`，直接浏览器硬刷新 `http://127.0.0.1:3080`（Ctrl+Shift+R）即可；若仍未出现，再完全退出并重启 DSH 桌面应用（命令行版则重启 `dsh web`）。
 
+> ⚠️ **避免「重复 loader entry」导致 cordis 卡死**：同一个插件**只选一种方式装一次**
+> （方式 A 或 方式 B 二选一，别混用）。本仓库的 `install-runtime.ps1` /
+> `install-to-dsh.ps1` **幂等且自带去重**——重复安装只保留**恰好一条** `- insert:`
+> 条目，绝不会叠加，并会自动归并历史残留的重复行。
+>
+> 若你之前**同时**用过「手动脚本」和「`dsh market` / `dsh plugin add`」两种方式，
+> `cordis.patch.yml` 里就可能出现同一条 `- insert:` 两次（DSH 启动会卡住）：
+> **重新跑一次 `install-runtime.ps1`** 即可自动归并回一条，然后浏览器硬刷新
+> （Ctrl+Shift+R），并按需要完全重启 DSH 桌面应用。
+>
+> 想手动核对：打开 `~/.dsh/profiles/web/cordis.patch.yml`（桌面版为
+> `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\data\dsh\profiles\web\cordis.patch.yml`），
+> 每个插件只应有一条 `- insert:`。注意 `select-pet.ps1` **只管理「旧式每宠插件」**，
+> 运行时插件（如 `@signalight/dsh-codex-pet`）由「设置 → 桌宠」管理，不会也不应由它改动。
+
 **之后加桌宠（全图形界面）：** 打开 **设置 → 桌宠**，点 **导入桌宠**，选一张 `.webp`
 图集即可（可输入中文名，宠物 id 自动取自文件名；id 重复时自动加 `-2`/`-3` 后缀，
 不会覆盖之前导入的桌宠）。详见
@@ -270,6 +285,8 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 ```
 
 ## 更新日志
+
+- **2026-08-25** 新增：安装脚本 `install-runtime.ps1` / `install-to-dsh.ps1` 改为**幂等 + 自动去重**（新增共享模块 `cordis-patch.ps1`），确保同一个插件在 `cordis.patch.yml` 里**恰好一条** `- insert:` 条目——避免重复安装（例如手动脚本与 `dsh market` 混用）产生重复 loader entry 导致 cordis 卡死；README 同步增加防坑说明。
 
 - **2026-08-25** 合并贡献者 **@yabo083** 的 PR #4：运行时插件新增「定期总结」（用所选 LLM 汇总模型请求进展，含设置项与总结记录面板，默认关闭）与「完成 / 错误 / 中断」三类**场景提示音**（默认开启、可试听、可上传自定义音频）。提示音的权利归属与许可见「许可与版权」节。版本升至 **0.3.0**。
 - **2026-08-24** 运行时插件新增「鼠标视觉追踪」开关（设置 → 桌宠）：v2 图集的视线是否跟随鼠标，可在界面里自行选择，**默认开启**；界面会提示此功能**仅 v2 图集可用**（v1 无注视帧，设置不生效）。该项以服务端 `mouseTracking` 配置持久化。
