@@ -11,11 +11,15 @@ This project is written with DSH — if you find any bugs or errors, please let 
 - Ready-to-use interactions: drag (runs in the direction of movement), hover to wave, double-click to jump, eyes follow the mouse (note: only Codex pet **v2** atlases — 11 rows — support eye tracking; the runtime plugin can turn this off in settings)
 - Reacts to the agent's live activity state and switches poses
 - **Progress bubble** above the pet while working (tool name / streaming text / "thinking…")
+- Optional periodic **LLM summaries** of model-request progress, with a per-session journal (off by default)
+- **Done / error / interrupt** scenario voices — previewable and replaceable with your own audio
 - Per-row **size normalization** to fix inconsistent pose sizes in some atlases
 
 > ⚠️ This framework (the build scripts) does **not** bundle third-party pet artwork.
 > The bundled runtime plugin ships one **example pet `nastya` (娜斯佳, an original
-> character, CC BY-NC 4.0)** for demonstration — see [LEGAL.md](./LEGAL.md).
+> character, CC BY-NC 4.0)** for demonstration. The bundled **scenario voices** were
+> generated with Qwen3-TTS, provided under MIT, and are separate from the example
+> character (whose atlas stays CC BY-NC 4.0) — see [LEGAL.md](./LEGAL.md).
 
 ## Recommended: runtime plugin (install once + GUI import)
 
