@@ -138,11 +138,78 @@ test('summary cadence counts completed model requests within one turn', () => {
 test('automatic summary baseline excludes requests that existed before session selection', () => {
   const { baselineAutoTracker } = mod.__internals;
   assert.deepEqual(baselineAutoTracker('historical', [{ startSeq: 10 }, { startSeq: 30 }]), {
-    sessionId: 'historical', lastSeenRequestSeq: 30, windowStartRequestSeq: 31, retryCount: 0,
+    sessionId: 'historical', ready: true, lastSeenRequestSeq: 30, windowStartRequestSeq: 31, retryCount: 0,
   });
   assert.deepEqual(baselineAutoTracker('empty', []), {
-    sessionId: 'empty', lastSeenRequestSeq: -1, windowStartRequestSeq: null, retryCount: 0,
+    sessionId: 'empty', ready: true, lastSeenRequestSeq: -1, windowStartRequestSeq: null, retryCount: 0,
   });
+});
+
+test('automatic summaries ignore historical requests hydrated after an empty selected snapshot', () => {
+  const { baselineAutoTracker, selectAutoSummaryBatch } = mod.__internals;
+  const historicalRequests = [{ startSeq: 10 }, { startSeq: 20 }, { startSeq: 30 }];
+  let tracker = baselineAutoTracker(null, []);
+
+  let selection = selectAutoSummaryBatch(tracker, 'historical', 'loading', [], 3, false);
+  assert.equal(selection.batch, null, 'loading empty snapshot only waits for open');
+  tracker = selection.tracker;
+
+  selection = selectAutoSummaryBatch(tracker, 'historical', 'loading', historicalRequests, 3, false);
+  assert.equal(selection.batch, null, 'loading hydration does not advance the window');
+  tracker = selection.tracker;
+
+  selection = selectAutoSummaryBatch(tracker, 'historical', 'open', historicalRequests, 3, false);
+  assert.equal(selection.batch, null, 'the first open snapshot baselines hydrated history');
+});
+
+test('direct-open session selection baselines old history without missing new requests', () => {
+  const { baselineAutoTracker, selectAutoSummaryBatch } = mod.__internals;
+  const historicalRequests = [{ startSeq: 10 }, { startSeq: 20 }, { startSeq: 30 }];
+  let tracker = baselineAutoTracker('previous-session', [{ startSeq: 1 }]);
+
+  let selection = selectAutoSummaryBatch(tracker, 'direct-open', 'open', historicalRequests, 3, false);
+  assert.equal(selection.batch, null, 'the first open snapshot does not summarize old history');
+  tracker = selection.tracker;
+
+  selection = selectAutoSummaryBatch(tracker, 'direct-open', 'open', [...historicalRequests, { startSeq: 40 }, { startSeq: 50 }, { startSeq: 60 }], 3, false);
+  assert.deepEqual(selection.batch, [{ startSeq: 40 }, { startSeq: 50 }, { startSeq: 60 }], 'the first request after selection starts the next interval');
+});
+
+test('automatic summaries batch requests completed after a stable live baseline', () => {
+  const { baselineAutoTracker, selectAutoSummaryBatch } = mod.__internals;
+  let tracker = baselineAutoTracker(null, []);
+
+  let selection = selectAutoSummaryBatch(tracker, 'live', 'loading', [], 3, false);
+  tracker = selection.tracker;
+  selection = selectAutoSummaryBatch(tracker, 'live', 'open', [{ startSeq: 10 }], 3, false);
+  assert.equal(selection.batch, null, 'open establishes the live baseline');
+  tracker = selection.tracker;
+  selection = selectAutoSummaryBatch(tracker, 'live', 'open', [{ startSeq: 10 }, { startSeq: 20 }, { startSeq: 30 }, { startSeq: 40 }], 3, false);
+
+  assert.deepEqual(selection.batch, [{ startSeq: 20 }, { startSeq: 30 }, { startSeq: 40 }]);
+});
+
+test('current automatic tracker ownership is session-specific', () => {
+  const { isCurrentAutoTrackerSession } = mod.__internals;
+  const tracker = { sessionId: 'session-a' };
+  assert.equal(isCurrentAutoTrackerSession(tracker, 'session-a'), true);
+  assert.equal(isCurrentAutoTrackerSession(tracker, 'session-b'), false);
+  assert.equal(isCurrentAutoTrackerSession(null, 'session-a'), false);
+});
+
+test('automatic summary settlement updates the current tracker only', () => {
+  const { settleAutoTrackerAfterSummary } = mod.__internals;
+  const inFlight = { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 30, windowStartRequestSeq: 11, retryCount: 2 };
+  const current = { ...inFlight, lastSeenRequestSeq: 50 };
+
+  const succeeded = settleAutoTrackerAfterSummary(current, 'session-a', 31, true);
+  assert.deepEqual(succeeded, { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 50, windowStartRequestSeq: 31, retryCount: 0 }, 'success preserves requests seen while the fetch was in flight');
+  assert.deepEqual(inFlight, { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 30, windowStartRequestSeq: 11, retryCount: 2 }, 'the request-time tracker is not mutated');
+
+  const failed = settleAutoTrackerAfterSummary(succeeded, 'session-a', 31, false);
+  assert.deepEqual(failed, { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 50, windowStartRequestSeq: 31, retryCount: 1 });
+
+  assert.equal(settleAutoTrackerAfterSummary(failed, 'session-b', 61, true), failed, 'a stale session cannot alter the current tracker');
 });
 
 test('manual summary filters every request covered by persisted journal ranges', () => {
@@ -169,6 +236,19 @@ test('manual summary reads the summary config object and top-level response text
   assert.equal(summaryTextFromResponse({ record: { summary: 'wrong response shape' } }), '');
 });
 
+test('manual summary ownership blocks and releases only its owning session', () => {
+  const {
+    manualSummaryBlocksSession,
+    releaseManualSummaryOwner,
+    releaseManualSummaryOwnerAfterSessionChange,
+  } = mod.__internals;
+
+  assert.equal(manualSummaryBlocksSession('session-a', 'session-a'), true, 'A blocks another manual start in A');
+  assert.equal(manualSummaryBlocksSession('session-a', 'session-b'), false, 'A does not block automatic work in B');
+  assert.equal(releaseManualSummaryOwnerAfterSessionChange('session-a', 'session-b'), null, 'switching to B releases stale A ownership');
+  assert.equal(releaseManualSummaryOwner('session-b', 'session-a'), 'session-b', 'late A completion cannot clear newer B ownership');
+});
+
 test('SummaryControls requires a provider and model before enabling summaries', () => {
   const html = renderToString(react.createElement(mod.__internals.SummaryControls, {
     summary: { enabled: true, provider: 'p', model: '' },
@@ -181,12 +261,12 @@ test('SummaryControls requires a provider and model before enabling summaries', 
 
 test('manual backfill advances the automatic summary cursor after each persisted batch', () => {
   const { advanceAutoTrackerAfterManual } = mod.__internals;
-  const tracker = { sessionId: 'session-a', lastSeenRequestSeq: 70, windowStartRequestSeq: 11, retryCount: 2 };
+  const tracker = { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 70, windowStartRequestSeq: 11, retryCount: 2 };
   advanceAutoTrackerAfterManual(tracker, 'session-a', [{ startSeq: 10 }, { startSeq: 30 }]);
-  assert.deepEqual(tracker, { sessionId: 'session-a', lastSeenRequestSeq: 70, windowStartRequestSeq: 31, retryCount: 2 });
+  assert.deepEqual(tracker, { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 70, windowStartRequestSeq: 31, retryCount: 2 });
 
   advanceAutoTrackerAfterManual(tracker, 'session-a', [{ startSeq: 40 }, { startSeq: 50 }]);
-  assert.deepEqual(tracker, { sessionId: 'session-a', lastSeenRequestSeq: 70, windowStartRequestSeq: 51, retryCount: 2 });
+  assert.deepEqual(tracker, { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 70, windowStartRequestSeq: 51, retryCount: 2 });
 
   // A later failed batch is not passed to the helper, so completed coverage remains advanced.
   assert.equal(tracker.windowStartRequestSeq, 51, 'a later failed batch leaves the cursor after the last persisted batch');
@@ -194,12 +274,12 @@ test('manual backfill advances the automatic summary cursor after each persisted
   advanceAutoTrackerAfterManual(tracker, 'session-a', [{ startSeq: 20 }]);
   assert.equal(tracker.windowStartRequestSeq, 51, 'an older manual range never moves the cursor backward');
 
-  const newerManual = { sessionId: 'session-a', lastSeenRequestSeq: 10, windowStartRequestSeq: 11, retryCount: 0 };
+  const newerManual = { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 10, windowStartRequestSeq: 11, retryCount: 0 };
   advanceAutoTrackerAfterManual(newerManual, 'session-a', [{ startSeq: 30 }]);
-  assert.deepEqual(newerManual, { sessionId: 'session-a', lastSeenRequestSeq: 30, windowStartRequestSeq: 31, retryCount: 0 });
+  assert.deepEqual(newerManual, { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 30, windowStartRequestSeq: 31, retryCount: 0 });
 
   advanceAutoTrackerAfterManual(tracker, 'session-b', [{ startSeq: 100 }]);
-  assert.deepEqual(tracker, { sessionId: 'session-a', lastSeenRequestSeq: 70, windowStartRequestSeq: 51, retryCount: 2 }, 'a session switch does not alter the current cursor');
+  assert.deepEqual(tracker, { sessionId: 'session-a', ready: true, lastSeenRequestSeq: 70, windowStartRequestSeq: 51, retryCount: 2 }, 'a session switch does not alter the current cursor');
 });
 
 test('SettingsSection renders its loading state without a host', () => {

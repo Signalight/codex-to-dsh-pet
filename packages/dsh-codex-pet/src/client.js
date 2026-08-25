@@ -523,7 +523,45 @@ window.__ModuleLoader__.load({
 			const latest = completedRequests && completedRequests.length
 				? completedRequests[completedRequests.length - 1].startSeq
 				: -1;
-			return { sessionId: sessionId ?? null, lastSeenRequestSeq: latest, windowStartRequestSeq: latest >= 0 ? latest + 1 : null, retryCount: 0 };
+			return { sessionId: sessionId ?? null, ready: true, lastSeenRequestSeq: latest, windowStartRequestSeq: latest >= 0 ? latest + 1 : null, retryCount: 0 };
+		}
+
+		function awaitingOpenAutoTracker(sessionId) {
+			return { sessionId: sessionId ?? null, ready: false, lastSeenRequestSeq: -1, windowStartRequestSeq: null, retryCount: 0 };
+		}
+
+		function isCurrentAutoTrackerSession(tracker, sessionId) {
+			return !!tracker && tracker.sessionId === sessionId;
+		}
+
+		/** Select the next automatic batch without mutating the tracker. */
+		function selectAutoSummaryBatch(tracker, sessionId, openState, completedRequests, interval, isSummarizing) {
+			if (tracker.sessionId !== sessionId) {
+				if (openState === "open") return { tracker: baselineAutoTracker(sessionId, completedRequests), batch: null };
+				return { tracker: awaitingOpenAutoTracker(sessionId), batch: null };
+			}
+			if (openState !== "open") return { tracker, batch: null };
+			if (!tracker.ready) return { tracker: baselineAutoTracker(sessionId, completedRequests), batch: null };
+			if (!completedRequests.length) return { tracker, batch: null };
+			const latest = completedRequests[completedRequests.length - 1].startSeq;
+			const nextTracker = latest > tracker.lastSeenRequestSeq ? { ...tracker, lastSeenRequestSeq: latest } : tracker;
+			if (isSummarizing) return { tracker: nextTracker, batch: null };
+			const start = nextTracker.windowStartRequestSeq != null ? nextTracker.windowStartRequestSeq : completedRequests[0].startSeq;
+			const batch = completedRequests.filter((request) => request.startSeq >= start).slice(0, interval);
+			return { tracker: nextTracker, batch: batch.length >= interval ? batch : null };
+		}
+
+		/** Settle an automatic summary against the current tracker, not its request-time snapshot. */
+		function settleAutoTrackerAfterSummary(tracker, sessionId, nextStartRequestSeq, succeeded) {
+			if (!isCurrentAutoTrackerSession(tracker, sessionId)) return tracker;
+			if (!succeeded) return { ...tracker, retryCount: tracker.retryCount + 1 };
+			return {
+				...tracker,
+				windowStartRequestSeq: tracker.windowStartRequestSeq == null
+					? nextStartRequestSeq
+					: Math.max(tracker.windowStartRequestSeq, nextStartRequestSeq),
+				retryCount: 0,
+			};
 		}
 
 		function requestCoveredByJournal(request, records) {
@@ -551,6 +589,18 @@ window.__ModuleLoader__.load({
 
 		function summaryTextFromResponse(data) {
 			return data && typeof data.summary === "string" ? data.summary : "";
+		}
+
+		function manualSummaryBlocksSession(ownerSessionId, sessionId) {
+			return ownerSessionId !== null && ownerSessionId === sessionId;
+		}
+
+		function releaseManualSummaryOwner(ownerSessionId, sessionId) {
+			return ownerSessionId === sessionId ? null : ownerSessionId;
+		}
+
+		function releaseManualSummaryOwnerAfterSessionChange(ownerSessionId, sessionId) {
+			return ownerSessionId !== null && ownerSessionId !== sessionId ? null : ownerSessionId;
 		}
 
 		/** Keep automatic work after successful manual coverage without skipping new requests. */
@@ -736,7 +786,7 @@ window.__ModuleLoader__.load({
 			const journalCacheRef = react.useRef({ sessionId: null, at: 0, items: null });
 			const menuRef = react.useRef(null);
 			const summaryRetryTimerRef = react.useRef(0);
-			const manualSummarizingRef = react.useRef(false);
+			const manualSummaryOwnerRef = react.useRef(null);
 			const closeMenuRef = react.useRef(() => {});
 			const activeAudioRef = react.useRef(new Set());
 			// Request window per selected session; journal history is intentionally not reused.
@@ -772,6 +822,7 @@ window.__ModuleLoader__.load({
 			react.useEffect(() => {
 				const sid = snap ? (snap.sessionId ?? null) : null;
 				if (activeSessionRef.current !== null && activeSessionRef.current !== sid) {
+					manualSummaryOwnerRef.current = releaseManualSummaryOwnerAfterSessionChange(manualSummaryOwnerRef.current, sid);
 					prevWorking.current = false;
 					stopMuteUntilRef.current = 0;
 					clearTimeout(doneTimerRef.current);
@@ -1042,7 +1093,7 @@ window.__ModuleLoader__.load({
 					const summary = summaryStateRef.current;
 					if (!sessionId) return showManualMessage("没有可分析的会话");
 					if (!manualSummaryEnabled(summary)) return showManualMessage("自动总结未启用，无法分析此前内容");
-					if (manualSummarizingRef.current || summarizingRef.current) return showManualMessage("总结正在生成，请稍候");
+					if (manualSummaryBlocksSession(manualSummaryOwnerRef.current, sessionId) || summarizingRef.current) return showManualMessage("总结正在生成，请稍候");
 					const snapshot = snapshotRef.current;
 					const completed = completedModelRequestsOf(snapshot || {});
 					if (!completed.length) return showManualMessage("没有可分析的已完成请求");
@@ -1061,7 +1112,7 @@ window.__ModuleLoader__.load({
 					const batches = summaryBatches(uncovered, summary.intervalRequests);
 					if (!batches.length) return showManualMessage("此前没有未总结的内容");
 					if (!window.confirm("将分析 " + batches.reduce((count, batch) => count + batch.length, 0) + " 个未总结请求，分 " + batches.length + " 批调用模型，可能产生相应费用。继续吗？")) return;
-					manualSummarizingRef.current = true;
+					manualSummaryOwnerRef.current = sessionId;
 					const summaries = [];
 					try {
 						for (const batch of batches) {
@@ -1084,7 +1135,7 @@ window.__ModuleLoader__.load({
 							showManualMessage(message === "no-llm-service" ? "未连接可用的 LLM 服务，无法分析此前内容" : "总结失败，已停止：" + message);
 						}
 					} finally {
-						manualSummarizingRef.current = false;
+						manualSummaryOwnerRef.current = releaseManualSummaryOwner(manualSummaryOwnerRef.current, sessionId);
 					}
 				};
 				const onContextMenu = (event) => {
@@ -1272,23 +1323,34 @@ window.__ModuleLoader__.load({
 			react.useEffect(() => {
 				if (!snap) return;
 				const cfg = summaryStateRef.current;
-				if (!manualSummaryEnabled(cfg)) return;
-				const interval = Math.max(1, cfg.intervalRequests || 5);
-				const tracker = trackerRef.current;
-				if (tracker.sessionId !== snap.sessionId) {
-					clearTimeout(summaryRetryTimerRef.current);
-					const done = completedModelRequestsOf(snap);
-					trackerRef.current = baselineAutoTracker(snap.sessionId, done);
+				const wasSessionChange = trackerRef.current.sessionId !== snap.sessionId;
+				if (!manualSummaryEnabled(cfg)) {
+					if (wasSessionChange) {
+						trackerRef.current = awaitingOpenAutoTracker(snap.sessionId);
+						summarizingRef.current = false;
+						clearTimeout(summaryRetryTimerRef.current);
+					}
 					return;
 				}
+				const interval = Math.max(1, cfg.intervalRequests || 5);
 				const done = completedModelRequestsOf(snap);
-				if (!done.length) return;
-				const latest = done[done.length - 1].startSeq;
-				if (latest > tracker.lastSeenRequestSeq) tracker.lastSeenRequestSeq = latest;
-				if (summarizingRef.current || manualSummarizingRef.current) return;
-				const start = tracker.windowStartRequestSeq != null ? tracker.windowStartRequestSeq : done[0].startSeq;
-				const batch = done.filter((request) => request.startSeq >= start).slice(0, interval);
-				if (batch.length < interval) return;
+				const selection = selectAutoSummaryBatch(
+					trackerRef.current,
+					snap.sessionId,
+					snap.openState,
+					done,
+					interval,
+					summarizingRef.current || manualSummaryBlocksSession(manualSummaryOwnerRef.current, snap.sessionId),
+				);
+				trackerRef.current = selection.tracker;
+				if (wasSessionChange) {
+					summarizingRef.current = false;
+					clearTimeout(summaryRetryTimerRef.current);
+					return;
+				}
+				const tracker = selection.tracker;
+				const batch = selection.batch;
+				if (!batch) return;
 				const nextStartRequestSeq = batch[batch.length - 1].startSeq + 1;
 				const payload = buildSummaryPayload(snap.nodes, batch, snap.sessionId);
 				summarizingRef.current = true;
@@ -1302,22 +1364,18 @@ window.__ModuleLoader__.load({
 					.then((r) => r.json())
 					.then((d) => {
 						if (d && d.ok === false) throw new Error(d.error || "summarize-failed");
-						if (tracker.sessionId !== requestSessionId) return;
-						tracker.windowStartRequestSeq = nextStartRequestSeq;
-						tracker.retryCount = 0;
+						if (!isCurrentAutoTrackerSession(trackerRef.current, requestSessionId) || activeSessionRef.current !== requestSessionId) return;
+						trackerRef.current = settleAutoTrackerAfterSummary(trackerRef.current, requestSessionId, nextStartRequestSeq, true);
 						journalCacheRef.current = { sessionId: null, at: 0, items: null };
 						showSummaryBubble((d && d.summary) || "");
 						succeeded = true;
 					})
 					.catch((e) => console.warn("[dsh-codex-pet] summarize failed:", e))
 					.finally(() => {
+						if (!isCurrentAutoTrackerSession(trackerRef.current, requestSessionId) || activeSessionRef.current !== requestSessionId) return;
 						summarizingRef.current = false;
-						if (tracker.sessionId !== requestSessionId) {
-							setSummaryTick((value) => value + 1);
-							return;
-						}
-						if (!succeeded) tracker.retryCount += 1;
-						const delay = succeeded ? 0 : Math.min(30000, 1000 * (2 ** Math.min(tracker.retryCount, 5)));
+						if (!succeeded) trackerRef.current = settleAutoTrackerAfterSummary(trackerRef.current, requestSessionId, nextStartRequestSeq, false);
+						const delay = succeeded ? 0 : Math.min(30000, 1000 * (2 ** Math.min(trackerRef.current.retryCount, 5)));
 						clearTimeout(summaryRetryTimerRef.current);
 						summaryRetryTimerRef.current = setTimeout(() => setSummaryTick((value) => value + 1), delay);
 					});
@@ -1874,7 +1932,7 @@ window.__ModuleLoader__.load({
 		exports.deriveActivity = deriveActivity;
 		// Render-smoke hook: lets the node test suite mount the settings UI
 		// without a browser. The host reads only apply/inject.
-			exports.__internals = { SoundControls, SummaryControls, SettingsSection, latestTurnInterrupted, latestTurnErrored, shouldPlayDone, completedTurnsOf, completedModelRequestsOf, buildSummaryPayload, baselineAutoTracker, requestCoveredByJournal, uncoveredModelRequestsOf, summaryBatches, manualSummaryEnabled, summaryTextFromResponse, advanceAutoTrackerAfterManual };
+			exports.__internals = { SoundControls, SummaryControls, SettingsSection, latestTurnInterrupted, latestTurnErrored, shouldPlayDone, completedTurnsOf, completedModelRequestsOf, buildSummaryPayload, baselineAutoTracker, isCurrentAutoTrackerSession, selectAutoSummaryBatch, settleAutoTrackerAfterSummary, requestCoveredByJournal, uncoveredModelRequestsOf, summaryBatches, manualSummaryEnabled, summaryTextFromResponse, manualSummaryBlocksSession, releaseManualSummaryOwner, releaseManualSummaryOwnerAfterSessionChange, advanceAutoTrackerAfterManual };
 		return module.exports;
 	}
 });
