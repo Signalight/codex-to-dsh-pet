@@ -26,6 +26,16 @@ plugin **once**, then add pets as plain data files — no per-pet code.
 - Live activity poses: idle / waiting / running / review, driven by the
   conversation state.
 - Progress bubble showing the running tool name or the live model text tail.
+- Optional fixed-interval first-person LLM summaries, with a per-session journal
+  shown when hovering the pet. Automatic summaries observe only requests completed
+  after selecting a session; they do not backfill historical conversations. Right-
+  click the pet to explicitly analyze prior unsummarized requests. This is disabled
+  by default. Enabling it sends bounded excerpts of user, assistant, tool, and error
+  content to the selected LLM and incurs that provider's usage/cost. Select a
+  provider and model before enabling summaries. Cadence and bubble duration
+  are configurable.
+- Configurable completion, error and interruption voices, including per-track
+  volume, bundled rotating takes and user-uploaded audio overrides.
 - Zero per-pet code: the browser half is registry-driven from `/api/codex-pet/*`.
 
 ## Install
@@ -115,10 +125,19 @@ src/
 | `/api/codex-pet/pets` | GET | pet registry (list of definitions) |
 | `/api/codex-pet/state` | GET | selected pet + display config |
 | `/api/codex-pet/set-pet` | POST | `{ petId }` — switch pet |
-| `/api/codex-pet/set-config` | POST | `{ size?, pin?, left?, top?, visible?, mouseTracking? }` |
+| `/api/codex-pet/set-config` | POST | update display, `summary`, or `sound` settings |
 | `/api/codex-pet/set-visible` | POST | `{ visible }` |
 | `/api/codex-pet/import?id=<filename>&name=<displayName>` | POST | raw image body — import a Codex atlas |
+| `/api/codex-pet/models` | GET | available LLM providers and models for summaries |
+| `/api/codex-pet/summarize` | POST | summarize one completed assistant-request batch |
+| `/api/codex-pet/journal?session=<id>&limit=<n>` | GET | recent persisted summaries (`&all=1` returns all records for manual coverage checks) |
+| `/api/codex-pet/sound?track=<id>` | POST | upload a raw audio override (8 MiB maximum) |
+| `/api/codex-pet/reset-sound?track=<id>` | POST | remove an audio override |
+| `/codex-pet-sound?track=<id>` | GET | stream the effective `done`, `error`, or `interrupt` track |
 | `/codex-pet/<id>/<file>` | GET | pet.json + spritesheet assets |
+
+Summary journals are stored under `~/.dsh/codex-pet-journal/`. Uploaded voice
+overrides are stored under `~/.dsh/pets/sounds/` and survive plugin updates.
 
 ## Roadmap
 
