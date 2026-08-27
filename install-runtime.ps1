@@ -18,6 +18,8 @@ $pluginId = 'codex-pet'
 # Locate the DSH home via the shared dsh-home.ps1 (probe order documented there:
 # $env:DSH_HOME -> ~/.dsh -> desktop app %APPDATA% dir).
 . (Join-Path $workspace 'dsh-home.ps1')
+# Shared idempotent + dedupe patch editor (guards against duplicate loader entries).
+. (Join-Path $workspace 'cordis-patch.ps1')
 $profileDir = Join-Path (Get-DshHome) 'profiles\web'
 $nodeModules = Join-Path (Split-Path -Parent $profileDir) 'node_modules'
 $pluginDst = Join-Path $nodeModules ($pluginName -replace '/', '\')
@@ -41,32 +43,14 @@ if (Test-Path (Join-Path $pkgDir 'assets')) {
 }
 Write-Host "[ok] plugin copied to $pluginDst"
 
-# 2) Register in cordis.patch.yml.
-$content = [System.IO.File]::ReadAllText($patchFile)
-if ($content.Contains("id: $pluginId") -and $content.Contains("name: '$pluginName'")) {
-    Write-Host "[ok] cordis.patch.yml already references $pluginName"
+# 2) Register in cordis.patch.yml (idempotent + self-healing: ensures exactly
+#    one loader entry for this plugin, collapsing any duplicates so cordis
+#    never sees two rows for the same id).
+$res = Set-CordisPluginEntry -Path $patchFile -Id $pluginId -Name $pluginName
+if ($res.Changed) {
+    Write-Host "[ok] cordis.patch.yml $($res.Message): $pluginName -> 1 insert row"
 } else {
-    Copy-Item $patchFile "$patchFile.bak" -Force
-    Write-Host "[ok] backed up cordis.patch.yml -> cordis.patch.yml.bak"
-
-    # Keep the comment header and any existing patch entries, but drop the bare
-    # `[]` placeholder: `[]` followed by real entries is invalid YAML.
-    $commentLines = @()
-    $bodyLines = @()
-    foreach ($line in [System.IO.File]::ReadAllLines($patchFile)) {
-        $trimmed = $line.Trim()
-        if ($trimmed.StartsWith('#')) { $commentLines += $line }
-        elseif ($trimmed -ne '' -and $trimmed -ne '[]') { $bodyLines += $line }
-    }
-
-    $entry = "- insert:`r`n    - id: $pluginId`r`n      name: '$pluginName'"
-    $parts = @()
-    if ($commentLines.Count -gt 0) { $parts += ($commentLines -join "`r`n") }
-    if ($bodyLines.Count -gt 0) { $parts += ($bodyLines -join "`r`n") }
-    $parts += $entry
-    $new = ($parts -join "`r`n`r`n") + "`r`n"
-    [System.IO.File]::WriteAllText($patchFile, $new, (New-Object System.Text.UTF8Encoding($false)))
-    Write-Host "[ok] registered $pluginName in cordis.patch.yml"
+    Write-Host "[ok] cordis.patch.yml already registers $pluginName exactly once"
 }
 
 Write-Host ""
