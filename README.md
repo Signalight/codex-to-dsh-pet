@@ -286,7 +286,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 更新日志
 
-- **2026-08-27** 修复（issue #8）：桌宠与侧边栏（如 `dsh-better-sidebar`）重叠时被遮挡的问题。给桌宠宿主层（`codex-pet-host`）加了较高的 `z-index`，使桌宠（及气泡/菜单）浮在侧边栏、面板之上，面板打开也不再盖住桌宠；宿主层本身仍为 `pointer-events:none`，不会挡住其它操作。
+- **2026-08-27** 发布 **0.3.1**：修复（issue #8）桌宠被侧边栏/面板遮挡的问题。桌宠宿主层改用 **React portal 挂到最顶层 `document.body`**（`position:fixed` + 极高 `z-index`），使桌宠（及气泡/菜单/总结面板）始终显示在侧边栏、面板**之上**；宿主层仍为 `pointer-events:none`，不会挡住其它操作。
 - **2026-08-25** 新增：安装脚本 `install-runtime.ps1` / `install-to-dsh.ps1` 改为**幂等 + 自动去重**（新增共享模块 `cordis-patch.ps1`），确保同一个插件在 `cordis.patch.yml` 里**恰好一条** `- insert:` 条目——避免重复安装（例如手动脚本与 `dsh market` 混用）产生重复 loader entry 导致 cordis 卡死；README 同步增加防坑说明。
 
 - **2026-08-25** 合并贡献者 **@yabo083** 的 PR #4：运行时插件新增「定期总结」（用所选 LLM 汇总模型请求进展，含设置项与总结记录面板，默认关闭）与「完成 / 错误 / 中断」三类**场景提示音**（默认开启、可试听、可上传自定义音频）。提示音的权利归属与许可见「许可与版权」节。版本升至 **0.3.0**。
