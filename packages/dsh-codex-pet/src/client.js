@@ -12,6 +12,13 @@ window.__ModuleLoader__.load({
 		var module = { exports: {} };
 		var exports = module.exports;
 		let react = require("react");
+		// react-dom's createPortal mounts the pet host at the top-level document.body
+		// stacking context, so side drawers/panels can never cover the pet even when
+		// the host's own slot container sits in a lower stacking context. Guarded so
+		// the node/browserless test harness (which only provides react) falls back to
+		// rendering the host in place.
+		let createPortal = null;
+		try { createPortal = require("react-dom").createPortal; } catch (e) { createPortal = null; }
 
 		// ================================================================
 		// Codex pet renderer (framework-agnostic core).
@@ -1474,15 +1481,18 @@ window.__ModuleLoader__.load({
 				}
 			}, [showBubble, bubbleText]);
 
-			return react.createElement("div", {
+			const hostEl = react.createElement("div", {
 				ref,
 				className: "codex-pet-host",
-				// Keep the desktop pet (and its bubbles / journal / menu) above side
-				// panels such as dsh-better-sidebar, so opening a panel never hides
-				// the pet. NOTE: the host is pointerEvents:none, so this only raises
-				// the small pet element (and its transient UI), never the whole panel.
-				style: { position: "absolute", inset: "0", pointerEvents: "none", zIndex: 2147483000 },
+				// Mount at the top-level (document.body) stacking context with a very
+				// high z-index, so side drawers/panels (any shell.overlay sibling that
+				// sits in a higher stacking context) can never cover the pet. The host
+				// is pointerEvents:none, so it only raises the small pet element (and
+				// its transient UI), never the whole panel. Falls back to in-place
+				// rendering when react-dom is unavailable.
+				style: { position: "fixed", inset: "0", pointerEvents: "none", zIndex: 2147483000 },
 			});
+			return createPortal ? createPortal(hostEl, document.body) : hostEl;
 		}
 
 		// ================================================================
