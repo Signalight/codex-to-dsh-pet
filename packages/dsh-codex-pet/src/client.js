@@ -1477,7 +1477,11 @@ window.__ModuleLoader__.load({
 			return react.createElement("div", {
 				ref,
 				className: "codex-pet-host",
-				style: { position: "absolute", inset: "0", pointerEvents: "none" },
+				// Keep the desktop pet (and its bubbles / journal / menu) above side
+				// panels such as dsh-better-sidebar, so opening a panel never hides
+				// the pet. NOTE: the host is pointerEvents:none, so this only raises
+				// the small pet element (and its transient UI), never the whole panel.
+				style: { position: "absolute", inset: "0", pointerEvents: "none", zIndex: 2147483000 },
 			});
 		}
 
