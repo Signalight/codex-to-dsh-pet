@@ -400,8 +400,9 @@ window.__ModuleLoader__.load({
 		/** Completed ordinary model requests, ordered by their durable start seq. */
 		function completedModelRequestsOf(snap) {
 			const view = snap && snap.views && typeof snap.views.get === "function" ? snap.views.get("trajectory") : null;
-			if (!view || !Array.isArray(view.requests)) return [];
-			return view.requests
+			const requests = snap && Array.isArray(snap.requests) ? snap.requests : (view ? view.requests : null);
+			if (!Array.isArray(requests)) return [];
+			return requests
 				.filter((request) => request && request.purpose === "assistant" && request.status !== "running" && Number.isSafeInteger(request.startSeq))
 				.slice()
 				.sort((a, b) => a.startSeq - b.startSeq);
@@ -757,16 +758,146 @@ window.__ModuleLoader__.load({
 			el.style.setProperty("--cp-bubble-border", s.border);
 		}
 
-		function useConversationSnapshot(sessions) {
-			const provide = sessions && sessions.currentProvideInfo;
-			const info = react.useSyncExternalStore(
-				(cb) => (provide ? provide.subscribe(cb) : () => {}),
-				() => (provide ? provide.getSnapshot() : undefined),
+		/**
+		 * Lazily resolve an internal Client service without declaring it in the
+		 * plugin's `inject` list. A host that never provides the service would
+		 * park the whole plugin, so poll briefly instead and expose the result
+		 * as a subscribable source React can read.
+		 */
+		function createServiceSource(ctx, name, intervalMs = 500, attempts = 120) {
+			const listeners = new Set();
+			let value = typeof ctx.get === "function" ? ctx.get(name) : undefined;
+			let timer = 0;
+			let remaining = attempts;
+			if (value === undefined) {
+				timer = setInterval(() => {
+					const next = typeof ctx.get === "function" ? ctx.get(name) : undefined;
+					if (next === undefined) {
+						if (--remaining <= 0) { clearInterval(timer); timer = 0; }
+						return;
+					}
+					clearInterval(timer);
+					timer = 0;
+					value = next;
+					for (const listener of [...listeners]) listener();
+				}, intervalMs);
+			}
+			return {
+				getSnapshot: () => value,
+				subscribe: (listener) => {
+					listeners.add(listener);
+					return () => { listeners.delete(listener); };
+				},
+				dispose: () => {
+					if (timer) { clearInterval(timer); timer = 0; }
+					listeners.clear();
+				},
+			};
+		}
+
+		// ================================================================
+		// Conversation snapshot adapter.
+		//
+		// DSH <= 0.1.x exposed `sessions.currentProvideInfo`, whose `session`
+		// hook carried one flat conversation snapshot (nodes / turnEnds /
+		// partial / runningCalls / requests). DSH 0.2.0-rc.1 retired that bridge
+		// together with @deepseek-ai/dsh-client-runtime: the same content now
+		// arrives split in two behind the internal `uiSession` service, whose
+		// "main binding" exposes a `session` hook (Session state) and — from
+		// ui-trajectory — a `trajectory` hook (live tail + event projections).
+		// Fold both back into the single shape the rest of this file reads, so
+		// old and current hosts share one code path.
+		// ================================================================
+
+		/** Legacy node array + turnEnds map rebuilt from trajectory event nodes. */
+		function legacyProjectionOf(trajectory) {
+			const eventNodes = trajectory && Array.isArray(trajectory.eventNodes) ? trajectory.eventNodes : null;
+			if (!eventNodes) return { nodes: null, turnEnds: null };
+			const nodes = [];
+			const turnEnds = new Map();
+			for (const entry of eventNodes) {
+				const data = entry && entry.data;
+				if (!data) continue;
+				// A message contribution wraps its legacy node; an assistant step
+				// wraps the finalized one (absent while the step still streams).
+				if (data.kind === "node" || data.kind === "assistant") {
+					if (data.node) nodes.push(data.node);
+					continue;
+				}
+				if (data.kind === "turn-end") {
+					turnEnds.set(data.turn, { time: data.time, error: data.error, errorCode: data.errorCode });
+					// A turn/end that carries an error is the current host's turn-error.
+					if (data.error !== undefined) nodes.push({ kind: "turn-error", turn: data.turn, step: Number.MAX_SAFE_INTEGER, message: data.error });
+				}
+			}
+			return { nodes, turnEnds };
+		}
+
+		/**
+		 * Fold the host's split snapshots into the shape this file reads. `live`
+		 * carries the live tail: on 0.2.0-rc.1+ the trajectory snapshot
+		 * (authoritative for partial/runningCalls/requests/eventNodes), on 0.1.x
+		 * the retired flat snapshot.
+		 */
+		function mergeConversationSnapshot(binding, live, session) {
+			if (!binding && !live && !session) return null;
+			const projection = legacyProjectionOf(live);
+			const bindingId = binding ? (binding.key !== undefined ? binding.key : (binding.props && binding.props.sessionId)) : undefined;
+			const pendingSource = session
+				? (session.pendingSubmissions !== undefined ? session.pendingSubmissions : session.pending)
+				: (live ? live.pending : undefined);
+			const openState = session && session.openState !== undefined ? session.openState : (live ? live.openState : undefined);
+			return {
+				sessionId: bindingId || (session && session.sessionId) || (live && live.sessionId) || null,
+				running: !!(session ? session.running : (live && live.running)),
+				pending: Array.isArray(pendingSource) ? pendingSource : [],
+				openState: openState === undefined ? null : openState,
+				partial: (live && live.partial) || null,
+				runningCalls: live && Array.isArray(live.runningCalls) ? live.runningCalls : [],
+				requests: live && Array.isArray(live.requests) ? live.requests : null,
+				views: (live && live.views) || null,
+				nodes: live && Array.isArray(live.nodes) ? live.nodes : projection.nodes,
+				turnEnds: (live && live.turnEnds) || projection.turnEnds,
+			};
+		}
+
+		function useConversationSnapshot(sessions, uiSessionSource) {
+			// Current host: the internal uiSession service's "main binding" source.
+			const uiSession = react.useSyncExternalStore(
+				(cb) => (uiSessionSource ? uiSessionSource.subscribe(cb) : () => {}),
+				() => (uiSessionSource ? uiSessionSource.getSnapshot() : undefined),
 			);
-			const source = info && info.hooks ? info.hooks.session : undefined;
-			return react.useSyncExternalStore(
-				(cb) => (source ? source.subscribe(cb) : () => {}),
-				() => (source ? source.getSnapshot() : null),
+			const mainSource = uiSession && uiSession.current;
+			// Legacy host: the retired client-runtime bridge.
+			const provide = sessions && sessions.currentProvideInfo;
+
+			const binding = react.useSyncExternalStore(
+				(cb) => (mainSource ? mainSource.subscribe(cb) : () => {}),
+				() => (mainSource ? mainSource.getSnapshot() : undefined),
+			);
+			const info = react.useSyncExternalStore(
+				(cb) => (provide && !mainSource ? provide.subscribe(cb) : () => {}),
+				() => (provide && !mainSource ? provide.getSnapshot() : undefined),
+			);
+
+			const carrier = mainSource ? binding : info;
+			const hooks = carrier && carrier.hooks;
+			const sessionSource = hooks && hooks.session;
+			const trajectorySource = hooks && hooks.trajectory;
+
+			const sessionSnap = react.useSyncExternalStore(
+				(cb) => (sessionSource ? sessionSource.subscribe(cb) : () => {}),
+				() => (sessionSource ? sessionSource.getSnapshot() : null),
+			);
+			const trajectorySnap = react.useSyncExternalStore(
+				(cb) => (trajectorySource ? trajectorySource.subscribe(cb) : () => {}),
+				() => (trajectorySource ? trajectorySource.getSnapshot() : null),
+			);
+
+			const live = trajectorySnap || sessionSnap;
+			return react.useMemo(
+				() => mergeConversationSnapshot(carrier, live, sessionSnap),
+				[carrier, live, sessionSnap],
 			);
 		}
 
@@ -778,7 +909,7 @@ window.__ModuleLoader__.load({
 			}).catch(() => {});
 		}
 
-		function PetOverlay({ sessions }) {
+		function PetOverlay({ sessions, uiSessionSource }) {
 			const ref = react.useRef(null);
 			const petRef = react.useRef(null);
 			const bubbleRef = react.useRef(null);
@@ -816,7 +947,7 @@ window.__ModuleLoader__.load({
 			const pulseSeenRef = react.useRef({ error: 0, interrupt: 0 });
 			const summaryStateRef = react.useRef(null);
 
-			const snap = useConversationSnapshot(sessions);
+			const snap = useConversationSnapshot(sessions, uiSessionSource);
 			const snapshotRef = react.useRef(snap);
 			snapshotRef.current = snap;
 			const activity = deriveActivity(snap);
@@ -1923,12 +2054,17 @@ window.__ModuleLoader__.load({
 
 		function apply(ctx) {
 			const sessions = ctx.sessions;
+			// The session-activity bridge moved to the internal `uiSession` service in
+			// DSH 0.2.0-rc.1. Declaring it in `inject` would park this plugin forever
+			// on an older host that never provides it, so look it up lazily instead.
+			const uiSessionSource = createServiceSource(ctx, "uiSession");
+			ctx.effect(() => () => uiSessionSource.dispose(), "codex-pet: uiSession lookup");
 			ctx.slots.inject("shell.overlay", () => ctx.slots.register({
 				name: "shell.overlay",
 				id: "dsh-codex-pet",
 				order: 100,
 				label: "Codex Pet",
-			}, (props) => react.createElement(PetOverlay, { ...props, sessions })));
+			}, (props) => react.createElement(PetOverlay, { ...props, sessions, uiSessionSource })));
 
 			// Settings page: reads/writes through our own /api/codex-pet/* routes
 			// (the same source of truth the pet overlay polls), so no settings
@@ -1946,7 +2082,7 @@ window.__ModuleLoader__.load({
 		exports.deriveActivity = deriveActivity;
 		// Render-smoke hook: lets the node test suite mount the settings UI
 		// without a browser. The host reads only apply/inject.
-			exports.__internals = { SoundControls, SummaryControls, SettingsSection, latestTurnInterrupted, latestTurnErrored, shouldPlayDone, completedTurnsOf, completedModelRequestsOf, buildSummaryPayload, baselineAutoTracker, isCurrentAutoTrackerSession, selectAutoSummaryBatch, settleAutoTrackerAfterSummary, requestCoveredByJournal, uncoveredModelRequestsOf, summaryBatches, manualSummaryEnabled, summaryTextFromResponse, manualSummaryBlocksSession, releaseManualSummaryOwner, releaseManualSummaryOwnerAfterSessionChange, advanceAutoTrackerAfterManual };
+			exports.__internals = { SoundControls, SummaryControls, SettingsSection, latestTurnInterrupted, latestTurnErrored, shouldPlayDone, completedTurnsOf, completedModelRequestsOf, mergeConversationSnapshot, legacyProjectionOf, createServiceSource, buildSummaryPayload, baselineAutoTracker, isCurrentAutoTrackerSession, selectAutoSummaryBatch, settleAutoTrackerAfterSummary, requestCoveredByJournal, uncoveredModelRequestsOf, summaryBatches, manualSummaryEnabled, summaryTextFromResponse, manualSummaryBlocksSession, releaseManualSummaryOwner, releaseManualSummaryOwnerAfterSessionChange, advanceAutoTrackerAfterManual };
 		return module.exports;
 	}
 });

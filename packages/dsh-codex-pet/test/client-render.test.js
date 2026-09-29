@@ -286,3 +286,94 @@ test('SettingsSection renders its loading state without a host', () => {
   const html = renderToString(react.createElement(mod.__internals.SettingsSection));
   assert.ok(html.includes('加载中'), 'initial render should show the loading state');
 });
+
+test('legacyProjectionOf rebuilds nodes and turn ends from trajectory events', () => {
+  const { legacyProjectionOf } = mod.__internals;
+  const projection = legacyProjectionOf({
+    eventNodes: [
+      { data: { kind: 'node', node: { kind: 'user', turn: 1, content: 'hi' } } },
+      { data: { kind: 'assistant', node: { kind: 'assistant', turn: 1, blocks: [{ kind: 'text', text: 'hello' }] } } },
+      { data: { kind: 'assistant', partial: { turn: 2, step: 0, blocks: [] } } },
+      { data: { kind: 'turn-end', turn: 1, time: 12 } },
+      { data: { kind: 'turn-end', turn: 2, time: 30, error: 'boom' } },
+    ],
+  });
+  assert.deepEqual(projection.nodes.map((node) => node.kind), ['user', 'assistant', 'turn-error']);
+  assert.equal(projection.nodes[2].message, 'boom');
+  assert.equal(projection.turnEnds.get(1).time, 12);
+  assert.equal(projection.turnEnds.get(1).error, undefined);
+  assert.equal(projection.turnEnds.get(2).error, 'boom');
+
+  assert.deepEqual(legacyProjectionOf(null), { nodes: null, turnEnds: null });
+  assert.deepEqual(legacyProjectionOf({}), { nodes: null, turnEnds: null });
+  assert.deepEqual(legacyProjectionOf({ eventNodes: [null, {}] }), { nodes: [], turnEnds: new Map() });
+});
+
+test('mergeConversationSnapshot folds the current host bindings into one snapshot', () => {
+  const { mergeConversationSnapshot } = mod.__internals;
+  const { deriveActivity } = mod;
+  const binding = { key: 'session-7', hooks: {}, props: { sessionId: 'session-7' } };
+  const trajectory = {
+    partial: { turn: 3, step: 1, blocks: [{ kind: 'text', text: '正在整理' }] },
+    runningCalls: [{ name: 'read_file' }],
+    requests: [{ startSeq: 1 }],
+    eventNodes: [{ data: { kind: 'turn-end', turn: 2, time: 5 } }],
+  };
+  const session = { sessionId: 'session-7', running: true, pendingSubmissions: [], openState: 'ready' };
+
+  const snap = mergeConversationSnapshot(binding, trajectory, session);
+  assert.equal(snap.sessionId, 'session-7');
+  assert.equal(snap.running, true);
+  assert.deepEqual(snap.pending, []);
+  assert.equal(snap.openState, 'ready');
+  assert.equal(snap.partial.blocks[0].text, '正在整理');
+  assert.equal(snap.runningCalls[0].name, 'read_file');
+  assert.deepEqual(snap.requests, [{ startSeq: 1 }]);
+  assert.deepEqual(snap.nodes, [], 'a clean turn end contributes no node');
+  assert.equal(snap.turnEnds.get(2).time, 5);
+  assert.equal(deriveActivity(snap), 'running', 'a live tool call keeps the pet in its running pose');
+
+  assert.equal(mergeConversationSnapshot(undefined, null, null), null);
+
+  // The session hook alone is enough to drive the waiting pose.
+  const waiting = mergeConversationSnapshot(binding, null, { sessionId: 'session-7', running: true, pendingSubmissions: [{ id: 1 }] });
+  assert.deepEqual(waiting.pending, [{ id: 1 }]);
+  assert.equal(deriveActivity(waiting), 'waiting', 'a pending submission wins over a running turn');
+
+  // Legacy host: the flat snapshot keeps its own nodes/turnEnds instead of a rebuild.
+  const legacyNodes = [{ kind: 'assistant', turn: 1, blocks: [] }];
+  const legacyTurnEnds = new Map([[1, 9]]);
+  const legacy = mergeConversationSnapshot({ hooks: {} }, { nodes: legacyNodes, turnEnds: legacyTurnEnds, running: false, pending: [] }, null);
+  assert.equal(legacy.nodes, legacyNodes);
+  assert.equal(legacy.turnEnds, legacyTurnEnds);
+  assert.equal(legacy.running, false);
+});
+
+test('createServiceSource resolves a late internal service and notifies subscribers', async () => {
+  const { createServiceSource } = mod.__internals;
+
+  const immediate = createServiceSource({ get: (name) => (name === 'uiSession' ? { current: null } : undefined) }, 'uiSession');
+  assert.deepEqual(immediate.getSnapshot(), { current: null }, 'an already-provided service resolves synchronously');
+  immediate.dispose();
+
+  let service;
+  const source = createServiceSource({ get: (name) => (name === 'uiSession' ? service : undefined) }, 'uiSession', 5, 50);
+  assert.equal(source.getSnapshot(), undefined);
+  let notified = 0;
+  const unsubscribe = source.subscribe(() => { notified += 1; });
+  service = { current: 'ready' };
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.deepEqual(source.getSnapshot(), { current: 'ready' }, 'the poll picks the service up');
+  assert.ok(notified >= 1, 'subscribers are told when the service arrives');
+  unsubscribe();
+  source.dispose();
+
+  const never = createServiceSource({ get: () => undefined }, 'uiSession', 5, 2);
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(never.getSnapshot(), undefined, 'an absent service stays unresolved');
+  never.dispose();
+
+  const noGet = createServiceSource({}, 'uiSession', 5, 1);
+  assert.equal(noGet.getSnapshot(), undefined, 'a context without ctx.get does not throw');
+  noGet.dispose();
+});

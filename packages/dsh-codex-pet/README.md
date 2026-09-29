@@ -58,6 +58,26 @@ It works on **0.1.x** and on **0.2.0-rc.1+**. The obsolete
 that package, so declaring it (`^0.1.0-rc.6`, as 0.3.1 did) makes DSH disable the
 row — which is exactly why the pet vanished on 0.2.0-rc.1.
 
+The same upgrade also **retired the client runtime at runtime**, not just in the
+manifest. On 0.1.x the pet overlay read the conversation from
+`sessions.currentProvideInfo`; that bridge is gone in the 0.2 line, which would
+leave the snapshot `null` and the bubble permanently blank (0.3.2 had this bug —
+the pet appeared but never spoke). The overlay now reads the internal
+`uiSession` service's main binding instead:
+
+- `hooks.trajectory` → live tail (`partial`, `runningCalls`) plus `requests`,
+  i.e. the "thinking…" / "running: \<tool\>" bubble text;
+- `hooks.session` → `running`, `pendingSubmissions`, `openState`;
+- `nodes` / `turnEnds` are rebuilt from the trajectory event nodes, keeping the
+  done chime and the periodic summaries working.
+
+`uiSession` is deliberately **not** listed in `inject`: it is an internal service
+that older hosts never provide, and Cordis parks the entire plugin when a hard
+dependency is missing. It is resolved lazily with `ctx.get("uiSession")` (plus a
+short polling subscribe, because the service can arrive after the plugin loads),
+and when it never shows up the overlay falls back to the legacy
+`currentProvideInfo` path — so one build serves both hosts.
+
 ## Install
 
 **Recommended — one command (needs pnpm):**
