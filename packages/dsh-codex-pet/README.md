@@ -38,6 +38,26 @@ plugin **once**, then add pets as plain data files — no per-pet code.
   volume, bundled rotating takes and user-uploaded audio overrides.
 - Zero per-pet code: the browser half is registry-driven from `/api/codex-pet/*`.
 
+## DSH compatibility
+
+DSH gates every profile plugin row on its `@deepseek-ai/dsh*` **peerDependencies**:
+a peer range the running DSH version does not satisfy disables the **whole row**
+(no pet, no settings section) with
+`Plugin … is incompatible with dsh …: peerDependencies …`.
+
+This plugin therefore declares only peers that exist across the DSH 0.2 line and
+later, with open-ended ranges:
+
+```json
+"@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.6",
+"@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.6"
+```
+
+It works on **0.1.x** and on **0.2.0-rc.1+**. The obsolete
+`@deepseek-ai/dsh-client-runtime` peer is *not* declared: DSH 0.2.0-rc.1 removed
+that package, so declaring it (`^0.1.0-rc.6`, as 0.3.1 did) makes DSH disable the
+row — which is exactly why the pet vanished on 0.2.0-rc.1.
+
 ## Install
 
 **Recommended — one command (needs pnpm):**

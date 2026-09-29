@@ -286,6 +286,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 更新日志
 
+- **2026-09-29** 发布 **0.3.2**：修复与 DSH **0.2.0-rc.1** 及以后版本不兼容、插件被启动门禁**整行禁用**（桌宠、「设置 → 桌宠」整块消失）的问题。根因：插件在 `package.json` 里把 `@deepseek-ai/dsh-client-runtime` 声明为 `peerDependencies`（`^0.1.0-rc.6`），而 DSH 0.2 线已把该包拆分/下线；DSH 会用它自己的版本去校验插件的每个 `@deepseek-ai/dsh*` peer，不满足即禁用整个插件行（报 `Plugin … is incompatible with dsh …: peerDependencies …`）。现在改为只声明**确实存在且确实在用**的 DSH 包，并放宽为开放区间：`@deepseek-ai/dsh-client-ui-slots` / `@deepseek-ai/dsh-host-webserver`（均为 `>=0.1.0-rc.6`），因此 **0.1.x 与 0.2.0-rc.1+ 都能通过**；同时补上 `dsh.manifestVersion: 1`，并把 `dsh.client.inject` 从已废弃的包名改为 `@deepseek-ai/dsh-client-ui-slots`。若你暂时不方便升级，也可用 `dsh plugin --profile web allow-version` 为旧版本单独放行。
 - **2026-08-27** 发布 **0.3.1**：修复（issue #8）桌宠被侧边栏/面板遮挡的问题。桌宠宿主层改用 **React portal 挂到最顶层 `document.body`**（`position:fixed` + 极高 `z-index`），使桌宠（及气泡/菜单/总结面板）始终显示在侧边栏、面板**之上**；宿主层仍为 `pointer-events:none`，不会挡住其它操作。
 - **2026-08-25** 新增：安装脚本 `install-runtime.ps1` / `install-to-dsh.ps1` 改为**幂等 + 自动去重**（新增共享模块 `cordis-patch.ps1`），确保同一个插件在 `cordis.patch.yml` 里**恰好一条** `- insert:` 条目——避免重复安装（例如手动脚本与 `dsh market` 混用）产生重复 loader entry 导致 cordis 卡死；README 同步增加防坑说明。
 
