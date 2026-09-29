@@ -65,8 +65,12 @@ leave the snapshot `null` and the bubble permanently blank (0.3.2 had this bug �
 the pet appeared but never spoke). The overlay now reads the internal
 `uiSession` service's main binding instead:
 
-- `hooks.trajectory` → live tail (`partial`, `runningCalls`) plus `requests`,
-  i.e. the "thinking…" / "running: \<tool\>" bubble text;
+- `hooks.chat` → the live tail (`partial`, `runningCalls`) plus `turnEnds`;
+  this is the target `dsh-client-ui-chat` registers, i.e. the streaming reply
+  text and the "running: \<tool\>" bubble text;
+- `hooks.trajectory` → the same fields plus `requests`, kept as a fallback when
+  the chat hook is absent (its own `partial` only fills in once its target has
+  accumulated chunks);
 - `hooks.session` → `running`, `pendingSubmissions`, `openState`;
 - `nodes` / `turnEnds` are rebuilt from the trajectory event nodes, keeping the
   done chime and the periodic summaries working.

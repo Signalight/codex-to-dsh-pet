@@ -347,6 +347,21 @@ test('mergeConversationSnapshot folds the current host bindings into one snapsho
   assert.equal(legacy.nodes, legacyNodes);
   assert.equal(legacy.turnEnds, legacyTurnEnds);
   assert.equal(legacy.running, false);
+
+  // The 0.2 live tail rides the `chat` hook; the trajectory snapshot can stay
+  // empty (its own partial only fills in once its target accumulates chunks).
+  const emptyTrajectory = { partial: null, runningCalls: [], requests: [], eventNodes: [] };
+  const chat = {
+    partial: { turn: 4, step: 1, blocks: [{ kind: 'text', text: '正在写代码' }] },
+    runningCalls: [],
+    turnEnds: new Map([[3, 21]]),
+    nodes: [{ kind: 'assistant-step' }],
+  };
+  const live = mergeConversationSnapshot(binding, emptyTrajectory, session, chat);
+  assert.equal(live.partial.blocks[0].text, '正在写代码', 'the chat hook supplies the live text');
+  assert.equal(deriveActivity(live), 'review', 'a streaming step with no tool call is the review pose');
+  assert.equal(live.turnEnds.get(3), 21, 'chat turn ends stand in when trajectory has none');
+  assert.deepEqual(live.runningCalls, []);
 });
 
 test('createServiceSource resolves a late internal service and notifies subscribers', async () => {

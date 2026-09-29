@@ -839,9 +839,19 @@ window.__ModuleLoader__.load({
 		 * (authoritative for partial/runningCalls/requests/eventNodes), on 0.1.x
 		 * the retired flat snapshot.
 		 */
-		function mergeConversationSnapshot(binding, live, session) {
-			if (!binding && !live && !session) return null;
+		function mergeConversationSnapshot(binding, live, session, chat) {
+			if (!binding && !live && !session && !chat) return null;
 			const projection = legacyProjectionOf(live);
+			// The live tail of the running step arrives on the `chat` hook —
+			// ui-chat's target snapshot (nodes / turnEnds / partial /
+			// runningCalls). ui-trajectory's own `partial` only fills in once its
+			// target has accumulated chunks, so it stays the fallback for hosts
+			// that never registered the chat hook.
+			const chatPartial = (chat && chat.partial) || null;
+			const chatCalls = chat && Array.isArray(chat.runningCalls) ? chat.runningCalls : null;
+			const liveCalls = live && Array.isArray(live.runningCalls) ? live.runningCalls : null;
+			const liveTurns = live && live.turnEnds;
+			const chatTurns = chat && chat.turnEnds;
 			const bindingId = binding ? (binding.key !== undefined ? binding.key : (binding.props && binding.props.sessionId)) : undefined;
 			const pendingSource = session
 				? (session.pendingSubmissions !== undefined ? session.pendingSubmissions : session.pending)
@@ -852,12 +862,12 @@ window.__ModuleLoader__.load({
 				running: !!(session ? session.running : (live && live.running)),
 				pending: Array.isArray(pendingSource) ? pendingSource : [],
 				openState: openState === undefined ? null : openState,
-				partial: (live && live.partial) || null,
-				runningCalls: live && Array.isArray(live.runningCalls) ? live.runningCalls : [],
+				partial: chatPartial || (live && live.partial) || null,
+				runningCalls: chatCalls && chatCalls.length > 0 ? chatCalls : (liveCalls || []),
 				requests: live && Array.isArray(live.requests) ? live.requests : null,
 				views: (live && live.views) || null,
 				nodes: live && Array.isArray(live.nodes) ? live.nodes : projection.nodes,
-				turnEnds: (live && live.turnEnds) || projection.turnEnds,
+				turnEnds: (liveTurns && liveTurns.size ? liveTurns : null) || (chatTurns && chatTurns.size ? chatTurns : null) || projection.turnEnds,
 			};
 		}
 
@@ -884,6 +894,7 @@ window.__ModuleLoader__.load({
 			const hooks = carrier && carrier.hooks;
 			const sessionSource = hooks && hooks.session;
 			const trajectorySource = hooks && hooks.trajectory;
+			const chatSource = hooks && hooks.chat;
 
 			const sessionSnap = react.useSyncExternalStore(
 				(cb) => (sessionSource ? sessionSource.subscribe(cb) : () => {}),
@@ -893,11 +904,15 @@ window.__ModuleLoader__.load({
 				(cb) => (trajectorySource ? trajectorySource.subscribe(cb) : () => {}),
 				() => (trajectorySource ? trajectorySource.getSnapshot() : null),
 			);
+			const chatSnap = react.useSyncExternalStore(
+				(cb) => (chatSource ? chatSource.subscribe(cb) : () => {}),
+				() => (chatSource ? chatSource.getSnapshot() : null),
+			);
 
 			const live = trajectorySnap || sessionSnap;
 			return react.useMemo(
-				() => mergeConversationSnapshot(carrier, live, sessionSnap),
-				[carrier, live, sessionSnap],
+				() => mergeConversationSnapshot(carrier, live, sessionSnap, chatSnap),
+				[carrier, live, sessionSnap, chatSnap],
 			);
 		}
 
