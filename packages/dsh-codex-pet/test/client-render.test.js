@@ -287,6 +287,13 @@ test('SettingsSection renders its loading state without a host', () => {
   assert.ok(html.includes('加载中'), 'initial render should show the loading state');
 });
 
+test('ResetControls offers both recovery buttons in the default idle state', () => {
+  const html = renderToString(react.createElement(mod.__internals.ResetControls, { reload: () => {} }));
+  assert.ok(html.includes('还原位置'), 'the position button is always reachable');
+  assert.ok(html.includes('还原全部设定'), 'the full restore button is always reachable');
+  assert.ok(!html.includes('disabled'), 'both buttons start enabled');
+});
+
 test('legacyProjectionOf rebuilds nodes and turn ends from trajectory events', () => {
   const { legacyProjectionOf } = mod.__internals;
   const projection = legacyProjectionOf({

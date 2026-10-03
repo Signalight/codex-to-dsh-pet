@@ -319,6 +319,9 @@ window.__ModuleLoader__.load({
 				},
 				setPin(pin) { options.pin = pin; place(); return controller; },
 				setPosition(x, y) { el.style.left = `${x}px`; el.style.top = `${y}px`; return controller; },
+				// Forget a dragged position so placement falls back to the pin again
+				// (the host's "restore position" button clears the saved left/top).
+				clearPosition() { options.position = undefined; place(); return controller; },
 				get animation() { return animationName; },
 				get dragging() { return dragging; },
 				get lookIndex() { return lookIndex; },
@@ -1103,6 +1106,11 @@ window.__ModuleLoader__.load({
 				size: displayNow ? (displayNow.size ?? null) : null,
 				pin: displayNow ? (displayNow.pin ?? null) : null,
 			});
+			// The host bumps `layoutRev` when it re-places the pet without touching
+			// the pin, the size or the pet (the "restore position" button). Clearing
+			// a dragged left/top changes nothing the key above looks at, so this is
+			// handled in place instead of by recreating the pet.
+			const layoutRevNow = displayNow ? (displayNow.layoutRev ?? 0) : null;
 
 			react.useEffect(() => {
 				const host = ref.current;
@@ -1234,7 +1242,10 @@ window.__ModuleLoader__.load({
 				const journalButton = document.createElement("button");
 				journalButton.type = "button";
 				journalButton.textContent = "查看总结记录";
-				menu.append(analyzeButton, journalButton);
+				const resetPosButton = document.createElement("button");
+				resetPosButton.type = "button";
+				resetPosButton.textContent = "还原位置";
+				menu.append(analyzeButton, journalButton, resetPosButton);
 				host.appendChild(menu);
 				menuRef.current = menu;
 				const closeMenu = () => { menu.style.display = "none"; };
@@ -1310,8 +1321,12 @@ window.__ModuleLoader__.load({
 				const onOutsideMenu = (event) => { if (!menu.contains(event.target) && event.target !== controller.element) closeMenu(); };
 				const onMenuKeydown = (event) => { if (event.key === "Escape") closeMenu(); };
 				const onJournalButtonClick = () => { closeMenu(); openJournal(); };
+				// Ask the host to drop the dragged position; the state poll picks the
+				// new layout revision up and re-places the pet at its pin.
+				const onResetPosClick = () => { closeMenu(); postJson("/api/codex-pet/reset-position", {}); };
 				analyzeButton.addEventListener("click", analyzeUncovered);
 				journalButton.addEventListener("click", onJournalButtonClick);
+				resetPosButton.addEventListener("click", onResetPosClick);
 				controller.element.addEventListener("contextmenu", onContextMenu);
 				document.addEventListener("pointerdown", onOutsideMenu);
 				window.addEventListener("keydown", onMenuKeydown);
@@ -1385,6 +1400,7 @@ window.__ModuleLoader__.load({
 					controller.element.removeEventListener("contextmenu", onContextMenu);
 					analyzeButton.removeEventListener("click", analyzeUncovered);
 					journalButton.removeEventListener("click", onJournalButtonClick);
+					resetPosButton.removeEventListener("click", onResetPosClick);
 					document.removeEventListener("pointerdown", onOutsideMenu);
 					window.removeEventListener("keydown", onMenuKeydown);
 					journal.removeEventListener("pointerenter", onJournalEnter);
@@ -1403,6 +1419,26 @@ window.__ModuleLoader__.load({
 					clearTimeout(journalHideTimerRef.current);
 				};
 			}, [configKey]);
+
+			// "Restore position": the host cleared the saved left/top and bumped the
+			// revision, so forget the dragged position here and fall back to the pin.
+			// A ref holds the baseline, and the first snapshot with a real display is
+			// only recorded — otherwise a page reload landing on the poll's first
+			// answer would throw away a position the user dragged on purpose.
+			const layoutRevRef = react.useRef(null);
+			react.useEffect(() => {
+				if (layoutRevNow === null) return;
+				if (layoutRevRef.current === null) { layoutRevRef.current = layoutRevNow; return; }
+				if (layoutRevRef.current === layoutRevNow) return;
+				layoutRevRef.current = layoutRevNow;
+				const pet = petRef.current;
+				if (!pet) return;
+				pet.clearPosition();
+				if (displayNow && displayNow.pin) pet.setPin(displayNow.pin);
+				positionBubble();
+				positionSummaryBubble();
+				positionJournal();
+			}, [layoutRevNow]);
 
 			// Update the bubble theme in place when the setting changes (no pet re-create).
 			const bubbleThemeNow = displayNow ? (displayNow.bubbleTheme ?? "gray") : "gray";
@@ -1738,6 +1774,33 @@ window.__ModuleLoader__.load({
 			);
 		}
 
+		// Recovery buttons. A dragged position wins over the pin, so shrinking the
+		// desktop can park the pet outside the viewport with nothing left to grab;
+		// this pair always lives here in Settings, which stays reachable. The
+		// second one restores every setting (pet choice and imported files stay).
+		function ResetControls({ reload }) {
+			const [busy, setBusy] = react.useState("");
+			const run = (path, confirmText) => {
+				if (confirmText && !window.confirm(confirmText)) return;
+				setBusy(path);
+				fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })
+					.then(() => reload())
+					.catch(() => {})
+					.finally(() => setBusy(""));
+			};
+			const button = (path, idle, busyText, confirmText) => react.createElement("button", {
+				type: "button",
+				onClick: () => run(path, confirmText),
+				disabled: busy !== "",
+				style: { padding: "8px 12px", cursor: busy !== "" ? "default" : "pointer" },
+			}, busy === path ? busyText : idle);
+			return react.createElement("div", { style: { display: "grid", gap: "8px" } },
+				button("/api/codex-pet/reset-position", "还原位置（把桌宠移回默认角落）", "还原中…"),
+				button("/api/codex-pet/reset-all", "还原全部设定（恢复所有默认设置）", "还原中…",
+					"将把所有设置恢复为默认值：位置、大小、显示、鼠标追踪、气泡、定期总结和提示音。宠物选择与已导入的宠物文件、自定义提示音会保留。继续吗？"),
+			);
+		}
+
 		function sectionTitle(text) {
 			return react.createElement("div", {
 				style: { fontWeight: 600, fontSize: "13px", marginTop: "4px", borderTop: "1px solid rgba(128,128,128,0.25)", paddingTop: "12px" },
@@ -2053,6 +2116,9 @@ window.__ModuleLoader__.load({
 				})),
 				react.createElement(ImportButton, { onImported: load }),
 
+				sectionTitle("还原 Reset"),
+				react.createElement(ResetControls, { reload: load }),
+
 				sectionTitle("定期总结 Turn Summary"),
 				react.createElement(SummaryControls, { summary: state.summary, reload: load }),
 
@@ -2097,7 +2163,7 @@ window.__ModuleLoader__.load({
 		exports.deriveActivity = deriveActivity;
 		// Render-smoke hook: lets the node test suite mount the settings UI
 		// without a browser. The host reads only apply/inject.
-			exports.__internals = { SoundControls, SummaryControls, SettingsSection, latestTurnInterrupted, latestTurnErrored, shouldPlayDone, completedTurnsOf, completedModelRequestsOf, mergeConversationSnapshot, legacyProjectionOf, createServiceSource, buildSummaryPayload, baselineAutoTracker, isCurrentAutoTrackerSession, selectAutoSummaryBatch, settleAutoTrackerAfterSummary, requestCoveredByJournal, uncoveredModelRequestsOf, summaryBatches, manualSummaryEnabled, summaryTextFromResponse, manualSummaryBlocksSession, releaseManualSummaryOwner, releaseManualSummaryOwnerAfterSessionChange, advanceAutoTrackerAfterManual };
+			exports.__internals = { SoundControls, SummaryControls, SettingsSection, ResetControls, latestTurnInterrupted, latestTurnErrored, shouldPlayDone, completedTurnsOf, completedModelRequestsOf, mergeConversationSnapshot, legacyProjectionOf, createServiceSource, buildSummaryPayload, baselineAutoTracker, isCurrentAutoTrackerSession, selectAutoSummaryBatch, settleAutoTrackerAfterSummary, requestCoveredByJournal, uncoveredModelRequestsOf, summaryBatches, manualSummaryEnabled, summaryTextFromResponse, manualSummaryBlocksSession, releaseManualSummaryOwner, releaseManualSummaryOwnerAfterSessionChange, advanceAutoTrackerAfterManual };
 		return module.exports;
 	}
 });

@@ -395,6 +395,8 @@ export function makeCodexPetRoutes({ service, getLlm }) {
     postRoute(PET_API_PREFIX + '/set-pet', (body) => service.setPetId(body.petId)),
     postRoute(PET_API_PREFIX + '/set-config', (body) => service.setConfig(body)),
     postRoute(PET_API_PREFIX + '/set-visible', (body) => service.setVisible(body.visible)),
+    postRoute(PET_API_PREFIX + '/reset-position', () => service.resetPosition()),
+    postRoute(PET_API_PREFIX + '/reset-all', () => service.resetAll()),
     importRoute(service),
     soundRoute(service),
     uploadSoundRoute(service),

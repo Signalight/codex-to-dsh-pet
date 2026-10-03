@@ -23,6 +23,11 @@ const DEFAULT_DISPLAY = {
   pin: 'bottom-right',
   left: null,
   top: null,
+  // Bumped whenever the host re-places the pet without changing the pin or the
+  // size (the "restore position" / "restore defaults" buttons). The browser
+  // half watches it so an off-screen pet is re-placed even though its saved
+  // layout key would otherwise look unchanged.
+  layoutRev: 0,
   bubbleTheme: 'gray',
   bubbleOpacity: 94,
   // v2 atlases only: the pet's eyes track the pointer (the 16 "look" cells).
@@ -325,6 +330,40 @@ export class PetService {
   setVisible(visible) {
     if (typeof visible !== 'boolean') throw new Error('invalid-visible')
     this.persist.display.visible = visible
+    this.save()
+    return this.state()
+  }
+
+  /**
+   * Put the pet back where its pin says it belongs. A dragged position is
+   * stored as left/top and wins over the pin, so a desktop that shrank can
+   * leave the pet parked outside the viewport with no way to grab it; dropping
+   * left/top hands placement back to the pin. `layoutRev` is bumped so the
+   * browser half re-places the pet even though pin and size are unchanged.
+   */
+  resetPosition() {
+    const d = this.persist.display
+    d.left = null
+    d.top = null
+    // An unknown pin is fine (the browser half falls through to bottom-right),
+    // but an empty one would make placement a no-op, so it is repaired here.
+    if (typeof d.pin !== 'string' || d.pin === '') d.pin = DEFAULT_DISPLAY.pin
+    d.layoutRev = (Number.isFinite(d.layoutRev) ? d.layoutRev : 0) + 1
+    this.save()
+    return this.state()
+  }
+
+  /**
+   * Restore every setting to its shipped default: display (position, size,
+   * pin, visibility, bubble, eye tracking), periodic summaries and the done
+   * chime. Configuration only — the selected pet id, any imported pet files
+   * and any uploaded chime files are deliberately kept.
+   */
+  resetAll() {
+    const rev = Number.isFinite(this.persist.display.layoutRev) ? this.persist.display.layoutRev : 0
+    this.persist.display = { ...DEFAULT_DISPLAY, layoutRev: rev + 1 }
+    this.persist.summary = sanitizeSummary(DEFAULT_SUMMARY)
+    this.persist.sound = sanitizeSound(DEFAULT_SOUND)
     this.save()
     return this.state()
   }

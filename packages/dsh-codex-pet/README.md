@@ -161,6 +161,10 @@ src/
 - **Browser half** fetches `/api/codex-pet/state`, renders the selected pet,
   mirrors drags back via `POST /api/codex-pet/set-config`, and seats a
   `settings.section` entry («桌宠») that edits the pet through the same API.
+  It also carries the two recovery buttons (position / everything) under
+  «还原 Reset», and re-seats the pet in place whenever the host bumps
+  `display.layoutRev` — a dragged `left`/`top` outranks the pin, so clearing it
+  changes none of the fields the pet is recreated for.
 
 ### API
 
@@ -171,6 +175,8 @@ src/
 | `/api/codex-pet/set-pet` | POST | `{ petId }` — switch pet |
 | `/api/codex-pet/set-config` | POST | update display, `summary`, or `sound` settings |
 | `/api/codex-pet/set-visible` | POST | `{ visible }` |
+| `/api/codex-pet/reset-position` | POST | drop a dragged `left`/`top` so the pet is re-seated by its pin |
+| `/api/codex-pet/reset-all` | POST | restore every setting to its default; pet choice and imported files stay |
 | `/api/codex-pet/import?id=<filename>&name=<displayName>` | POST | raw image body — import a Codex atlas |
 | `/api/codex-pet/models` | GET | available LLM providers and models for summaries |
 | `/api/codex-pet/summarize` | POST | summarize one completed assistant-request batch |

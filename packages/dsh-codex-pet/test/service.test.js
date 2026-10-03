@@ -138,6 +138,80 @@ test('setConfig preserves untouched scenario tracks', () => {
   assert.deepEqual(service.state().sound.tracks.error, { enabled: false, volume: 70 })
 })
 
+test('resetPosition drops a dragged spot and bumps the layout revision', () => {
+  const service = makeService()
+  service.setConfig({ left: 4200, top: 3100 })
+  assert.equal(service.state().display.left, 4200)
+  const before = service.state().display.layoutRev
+
+  service.resetPosition()
+  const after = service.state().display
+  assert.equal(after.left, null)
+  assert.equal(after.top, null)
+  assert.equal(after.pin, 'bottom-right')
+  assert.equal(after.layoutRev, before + 1)
+})
+
+test('resetPosition repairs a pin that would skip placement altogether', () => {
+  const service = makeService()
+  // An unknown-but-present pin is harmless (the browser half falls through to
+  // bottom-right), but an empty one makes placement a no-op, so it is repaired.
+  service.setConfig({ pin: '', left: 10, top: 10 })
+  service.resetPosition()
+  assert.equal(service.state().display.pin, 'bottom-right')
+})
+
+test('resetPosition survives a persisted file without a layout revision', () => {
+  const service = makeService()
+  const home = service.env.DSH_HOME
+  writeFileSync(join(home, 'codex-pet.json'), JSON.stringify({
+    display: { left: 900, top: 900 },
+  }), 'utf8')
+  const reloaded = new PetService({ registry: makeRegistry(), env: { DSH_HOME: home } })
+  reloaded.resetPosition()
+  assert.equal(reloaded.state().display.layoutRev, 1)
+})
+
+test('resetAll restores every default but keeps the chosen pet', () => {
+  const service = makeService()
+  service.setConfig({
+    size: 260, pin: 'top-left', left: 40, top: 40, bubbleOpacity: 10, mouseTracking: false,
+    summary: { enabled: false, intervalRequests: 9, maxChars: 999 },
+    sound: { volume: 5, enabled: false, tracks: { done: { enabled: false, volume: 1 } } },
+  })
+  assert.equal(service.state().display.pin, 'top-left')
+
+  service.resetAll()
+  const state = service.state()
+  assert.equal(state.display.size, 120)
+  assert.equal(state.display.pin, 'bottom-right')
+  assert.equal(state.display.left, null)
+  assert.equal(state.display.top, null)
+  assert.equal(state.display.bubbleOpacity, 94)
+  assert.equal(state.display.mouseTracking, true)
+  assert.equal(state.summary.intervalRequests, 5)
+  assert.equal(state.summary.maxChars, 220)
+  assert.equal(state.sound.volume, 60)
+  assert.equal(state.sound.enabled, true)
+  assert.deepEqual(state.sound.tracks.done, { enabled: true, volume: 100 })
+  assert.equal(state.pet.id, 'nastya')
+  assert.equal(state.display.layoutRev, 1)
+})
+
+test('resetAll keeps the custom prompt tone and the imported pet files on disk', () => {
+  const service = makeService()
+  const wavHeader = Buffer.alloc(44)
+  wavHeader.write('RIFF', 0, 'ascii')
+  wavHeader.write('WAVE', 8, 'ascii')
+  service.saveSound(wavHeader)
+  assert.equal(service.state().hasCustomSounds.done, true)
+
+  service.resetAll()
+  assert.equal(service.state().hasCustomSounds.done, true)
+  assert.ok(existsSync(service.customSoundFile()))
+})
+
+
 test('sound upload stores an override, replaces other variants, reset removes', () => {
   const service = makeService()
   const wavHeader = Buffer.alloc(44)

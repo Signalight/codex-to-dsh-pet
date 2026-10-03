@@ -27,6 +27,12 @@
 鼠标视觉追踪（**仅 v2 图集**，默认开启，可关闭），并内置
 一只示例桌宠 `nastya`（娜斯佳，原创角色，CC BY-NC）。
 
+> 🧭 **桌宠跑到屏幕外回不来？** 改分辨率后如果桌宠停在看不见的地方，打开
+> **设置 → 桌宠 → 还原 Reset**，点 **「还原位置」** 它就会回到所选角落；
+> 点 **「还原全部设定」** 则把位置、大小、显示、鼠标追踪、气泡、定期总结和提示音
+> 一次性恢复默认（**宠物选择与已导入的文件、自定义提示音会保留**）。
+> 桌宠在屏幕内时，也可以右键点它选 **「还原位置」**。
+
 **安装（仅一次，任选其一）：**
 
 **方式 A —— 一条命令（需要 pnpm）：**
@@ -286,6 +292,7 @@ Copy-Item "$profileDir\cordis.patch.yml.bak" "$profileDir\cordis.patch.yml" -For
 
 ## 更新日志
 
+- **2026-10-03** 发布 **0.4.0**：新增两个**还原**按钮，解决「调整桌面分辨率后桌宠跑到屏幕外、再也拖不回来」的问题。根因：拖拽后的位置以 `left`/`top` 持久化，而它**优先于**「位置（九宫格）」设置，所以分辨率一变，桌宠就停在视口之外。现在打开 **设置 → 桌宠 → 还原 Reset**，点 **「还原位置」** 即清掉已保存的拖拽坐标、交回九宫格摆位（桌宠还在屏幕内时也可**右键点它**选「还原位置」）；点 **「还原全部设定」** 则把位置、大小、显示开关、鼠标追踪、气泡颜色/透明度、定期总结与场景提示音一次性恢复默认，**宠物选择、已导入的宠物文件与自定义提示音都会保留**（点击前有二次确认）。因为浏览器端只在「换宠 / 显隐 / 大小 / 位置」变化时才重建桌宠，而清掉 `left`/`top` 不改动这些字段，故新增 `display.layoutRev`：主机每次重排自增一次，浏览器端据此**原地**重新落位（不重建、不闪烁）。对应新接口 `POST /api/codex-pet/reset-position` 与 `POST /api/codex-pet/reset-all`。
 - **2026-09-29** 发布 **0.3.4**：修复 **0.3.3 在 DSH 0.2.0-rc.1 下「思考中…」能出现、却看不到模型实时输出文字** 的问题。根因：0.2 线把会话内容拆成多个 target，**流式 step 的实时 tail（`partial.blocks`）挂在 `chat` target 上**，由 `dsh-client-ui-chat` 通过 `ctx.uiSession.provide({ hooks: ['chat'], … })` 暴露；0.3.3 只读了 `hooks.trajectory`，而 trajectory 自己的 `partial` 要等它的 target 累积到 chunk 才有值，于是实时文字恒为空——运行 / 待处理状态仍来自 `hooks.session`，所以「思考中…」看起来是正常的。现在气泡文字与工具名**优先读 `hooks.chat`**，`hooks.trajectory` 退为回退；`turnEnds` 同时接受 chat 的 `Map<turn, seq>` 形态。0.1.x 与 0.2.0-rc.1+ 的行为保持一致。
 - **2026-09-29** **0.3.3**（未单独发布到 npm，其修复已随 **0.3.4** 发布）：修复桌宠**气泡不再显示「思考中…」与模型实时输出文字**的问题（DSH **0.2.0-rc.1** 起）。根因与 0.3.2 同源、机制不同：0.1.x 时代插件通过 `sessions.currentProvideInfo` 读取会话快照，该桥随 `@deepseek-ai/dsh-client-runtime` 一起在 0.2 线被移除，于是快照恒为 `null`、活动状态恒为 `idle`，气泡永不出现（连「运行中：工具名」也没有，桌宠也不再进入 running/waiting 姿势）。现在改为读取 0.2 内部 `uiSession` 服务的**主绑定**：`hooks.trajectory` 提供实时 tail（`partial` / `runningCalls`，也就是气泡文字与工具名），`hooks.session` 提供运行 / 待处理 / 打开状态，并从 trajectory 事件节点重建 `nodes` / `turnEnds` / `requests`（完成提示音与定期总结随之恢复）。为兼容旧宿主，`uiSession` **不写进 `inject`**（缺失的硬依赖会让整个插件被 Cordis park），改用 `ctx.get('uiSession')` 惰性查找 + 短暂轮询订阅；查不到时自动回退旧的 `currentProvideInfo` 路径，因此 **0.1.x 与 0.2.0-rc.1+ 共用同一份代码**。
 - **2026-09-29** 发布 **0.3.2**：修复与 DSH **0.2.0-rc.1** 及以后版本不兼容、插件被启动门禁**整行禁用**（桌宠、「设置 → 桌宠」整块消失）的问题。根因：插件在 `package.json` 里把 `@deepseek-ai/dsh-client-runtime` 声明为 `peerDependencies`（`^0.1.0-rc.6`），而 DSH 0.2 线已把该包拆分/下线；DSH 会用它自己的版本去校验插件的每个 `@deepseek-ai/dsh*` peer，不满足即禁用整个插件行（报 `Plugin … is incompatible with dsh …: peerDependencies …`）。现在改为只声明**确实存在且确实在用**的 DSH 包，并放宽为开放区间：`@deepseek-ai/dsh-client-ui-slots` / `@deepseek-ai/dsh-host-webserver`（均为 `>=0.1.0-rc.6`），因此 **0.1.x 与 0.2.0-rc.1+ 都能通过**；同时补上 `dsh.manifestVersion: 1`，并把 `dsh.client.inject` 从已废弃的包名改为 `@deepseek-ai/dsh-client-ui-slots`。若你暂时不方便升级，也可用 `dsh plugin --profile web allow-version` 为旧版本单独放行。
